@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>4호 게임: 새와 지렁이 - 레버를 내려 지렁이를 가장 많이 가져가라!</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --background: #0f172a;
+      --foreground: #f8fafc;
+      --card: #1e293b;
+      --border: #334155;
+      --muted-foreground: #94a3b8;
+      --secondary: #334155;
+      --secondary-foreground: #f1f5f9;
+    }
+
+    @keyframes wriggleWorm {
+      0%, 100% { transform: rotate(-6deg) scale(1); }
+      50% { transform: rotate(8deg) scale(1.08); }
+    }
+    @keyframes peckRight {
+      0% { transform: rotate(0deg) translateX(0); }
+      45% { transform: rotate(34deg) translateX(18px) translateY(8px); }
+      100% { transform: rotate(0deg) translateX(0); }
+    }
+    @keyframes peckLeft {
+      0% { transform: rotate(0deg) translateX(0); }
+      45% { transform: rotate(-34deg) translateX(-18px) translateY(8px); }
+      100% { transform: rotate(0deg) translateX(0); }
+    }
+    @keyframes leverPullDown {
+      0% { transform: rotate(0deg); }
+      50% { transform: rotate(38deg) translateY(8px); }
+      100% { transform: rotate(0deg); }
+    }
+    @keyframes leverPullDownRight {
+      0% { transform: rotate(0deg); }
+      50% { transform: rotate(-38deg) translateY(8px); }
+      100% { transform: rotate(0deg); }
+    }
+    @keyframes diceRoll {
+      0% { transform: rotate(0deg) scale(1); }
+      25% { transform: rotate(90deg) scale(1.15); }
+      50% { transform: rotate(180deg) scale(0.95); }
+      75% { transform: rotate(270deg) scale(1.1); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+    @keyframes pulseLever {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.75); }
+      50% { box-shadow: 0 0 22px 6px rgba(251, 191, 36, 0.95); }
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.3); opacity: 0; }
+      80% { transform: scale(1.15); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .animate-worm { animation: wriggleWorm 1.6s ease-in-out infinite; }
+    .animate-peck-right { animation: peckRight 0.36s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .animate-peck-left { animation: peckLeft 0.36s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .animate-lever-left { animation: leverPullDown 0.35s ease-in-out; }
+    .animate-lever-right { animation: leverPullDownRight 0.35s ease-in-out; }
+    .animate-dice { animation: diceRoll 0.45s ease-in-out infinite; }
+    .animate-glow { animation: pulseLever 1.2s infinite; }
+    .animate-pop { animation: popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+    .bird-body-pivot {
+      transform-origin: bottom center;
+      transition: transform 0.2s;
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased min-h-screen p-3 md:p-5 select-none">
+  <div class="max-w-5xl mx-auto space-y-4">
+
+    <!-- Top Navigation Bar -->
+    <div class="flex items-center justify-between flex-wrap gap-2">
+      <a href="../../index.html" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-500/30 transition">
+        <span>🏠 게임 연구소 목록으로</span>
+      </a>
+      <button onclick="toggleSketchModal(true)" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold bg-lime-500/20 text-lime-300 border border-lime-500/40 hover:bg-lime-500/30 transition">
+        <span>🎨 내 원작 설계도 그림 보기</span>
+      </button>
+    </div>
+
+    <!-- Header Banner -->
+    <header class="bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-14 h-14 rounded-2xl bg-lime-500/15 border-2 border-lime-500/40 flex items-center justify-center text-3xl shrink-0">
+          🐦🪱
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-lime-500/20 text-lime-300 border border-lime-500/30">
+              4호 작품 · 새 모형 4개 & 지렁이 15개 액션 보드게임
+            </span>
+            <span class="text-xs text-[var(--muted-foreground)] font-medium">뒤에 있는 레버를 내리면 콕! 냠!</span>
+          </div>
+          <h1 class="text-xl md:text-2xl font-black tracking-tight flex items-center gap-2 mt-0.5">
+            <span>새와 지렁이</span>
+            <span class="text-xs font-extrabold px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30">2~4명 대결!</span>
+          </h1>
+        </div>
+      </div>
+
+      <!-- Player Count, Worm Count & AI Controls -->
+      <div class="flex flex-wrap items-center gap-2 justify-end">
+        <!-- Player Count Selector (2~4명) -->
+        <div class="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-700 text-xs font-extrabold">
+          <button id="pCntBtn2" onclick="setPlayerCount(2)" class="px-2.5 py-1 rounded-lg transition">2명</button>
+          <button id="pCntBtn3" onclick="setPlayerCount(3)" class="px-2.5 py-1 rounded-lg transition">3명</button>
+          <button id="pCntBtn4" onclick="setPlayerCount(4)" class="px-2.5 py-1 rounded-lg transition">4명</button>
+        </div>
+
+        <!-- Worm Count Selector (Default 15개) -->
+        <div class="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-700 text-xs font-extrabold">
+          <button id="wCntBtn15" onclick="setWormCount(15)" class="px-2.5 py-1 rounded-lg transition">🪱 15개</button>
+          <button id="wCntBtn20" onclick="setWormCount(20)" class="px-2.5 py-1 rounded-lg transition">🪱 20개</button>
+        </div>
+
+        <button id="btnVsMode" onclick="toggleVsMode()" class="px-3 py-1.5 rounded-xl text-xs font-bold border border-[var(--border)] bg-[var(--secondary)] text-[var(--secondary-foreground)] hover:opacity-90 transition">
+          🤖 1P vs 로봇(AI)
+        </button>
+        <button onclick="resetGame()" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500 text-white hover:bg-rose-600 transition">
+          🔄 새 게임
+        </button>
+      </div>
+    </header>
+
+    <!-- Step Progress Bar -->
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-3 shadow-sm">
+      <div class="grid grid-cols-3 gap-2 text-center text-xs font-bold">
+        <div id="stepIndicator1" class="p-2 rounded-xl border transition-all">
+          <div class="text-base mb-0.5">🎲 1단계</div>
+          <div>주사위 굴리기</div>
+        </div>
+        <div id="stepIndicator2" class="p-2 rounded-xl border transition-all">
+          <div class="text-base mb-0.5">🕹️ 2단계</div>
+          <div>뒤에 있는 레버 내려서 지렁이 집기!</div>
+        </div>
+        <div id="stepIndicator3" class="p-2 rounded-xl border transition-all">
+          <div class="text-base mb-0.5">🏆 3단계</div>
+          <div>가장 많이 가져간 사람이 승!</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Game Container -->
+    <div class="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-4 md:p-6 shadow-md space-y-5">
+
+      <!-- Status Banner -->
+      <div id="statusBanner" class="p-3.5 rounded-2xl bg-lime-500/10 border border-lime-500/30 text-center">
+        <p id="statusTitle" class="text-base md:text-lg font-extrabold text-[var(--foreground)]">
+          가운데 접시에 꿈틀꿈틀 지렁이 피규어 15개가 준비되었어요!
+        </p>
+        <p id="statusSub" class="text-xs md:text-sm text-[var(--muted-foreground)] mt-0.5">
+          주사위를 굴려 나온 개수만큼 새 뒤에 있는 레버를 내려서 앞 밥그릇에 지렁이를 담으세요!
+        </p>
+      </div>
+
+      <!-- INTERACTIVE DICE & LEVER CONTROL BAR -->
+      <div class="bg-slate-900/95 border-2 border-slate-700 rounded-2xl p-4">
+
+        <!-- PHASE: DICE ROLL -->
+        <div id="phaseDice" class="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div class="flex items-center gap-3.5">
+            <div id="diceBox" class="w-16 h-16 rounded-2xl bg-white text-slate-900 border-4 border-lime-400 shadow-lg flex items-center justify-center text-4xl font-black shrink-0">
+              🎲
+            </div>
+            <div class="text-left">
+              <div id="turnBadgeText" class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-black bg-lime-400 text-slate-950">
+                1번 새 차례
+              </div>
+              <div id="diceTurnTitle" class="text-base md:text-lg font-black text-white mt-0.5">
+                🐦 파랑새(1P)가 주사위를 굴릴 차례예요!
+              </div>
+              <div class="text-xs text-slate-300">
+                주사위가 나온 개수만큼 지렁이를 가져갈 수 있어요!
+              </div>
+            </div>
+          </div>
+
+          <button
+            id="btnRollDice"
+            onclick="rollDice()"
+            class="w-full sm:w-auto px-6 py-3.5 rounded-2xl font-black text-sm bg-lime-400 hover:bg-lime-300 text-slate-950 shadow-lg transition transform active:scale-95 shrink-0"
+          >
+            🎲 주사위 굴리기!
+          </button>
+        </div>
+
+        <!-- PHASE: PULL LEVER (뒤에 있는 레버를 내리면 된다!) -->
+        <div id="phaseLever" class="hidden flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div class="flex items-center gap-3.5">
+            <div id="leverDiceDisplay" class="w-16 h-16 rounded-2xl bg-amber-400 text-slate-950 border-4 border-white shadow-lg flex flex-col items-center justify-center shrink-0">
+              <span class="text-[10px] font-black leading-none">남은 횟수</span>
+              <span id="remainingPecksText" class="text-2xl font-black leading-tight">3</span>
+            </div>
+            <div class="text-left">
+              <div class="text-xs font-extrabold text-amber-300">
+                🕹️ 새 조종 방법: (뒤에 있는 레버를 내리면 된다!)
+              </div>
+              <div id="leverTurnTitle" class="text-base md:text-lg font-black text-white mt-0.5">
+                내 새 뒤에 있는 [레버]를 눌러서 지렁이를 집으세요!
+              </div>
+              <div class="text-xs text-slate-300">
+                레버를 1번 내릴 때마다 새가 고개를 숙여 지렁이 1마리를 앞 밥그릇에 담습니다!
+              </div>
+            </div>
+          </div>
+
+          <button
+            id="btnQuickPullLever"
+            onclick="pullActiveBirdLever()"
+            class="w-full sm:w-auto px-6 py-3.5 rounded-2xl font-black text-sm bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-lg transition transform active:scale-95 shrink-0 animate-glow"
+          >
+            🕹️ 철컥! 레버 내려서 지렁이 집기!
+          </button>
+        </div>
+
+        <!-- PHASE: GAME OVER -->
+        <div id="phaseGameOver" class="hidden text-center py-3 space-y-3">
+          <div id="winnerEmoji" class="text-5xl animate-bounce">🏆🐦🪱</div>
+          <h3 id="winnerTitle" class="text-xl font-black text-lime-300">
+            파랑새(1P) 승리!!
+          </h3>
+          <p id="winnerSub" class="text-xs text-slate-300">
+            지렁이를 가장 많이 밥그릇에 모아서 승리했어요!
+          </p>
+          <button onclick="resetGame()" class="px-6 py-3 rounded-2xl font-black text-sm bg-lime-400 hover:bg-lime-300 text-slate-950 shadow-lg transition">
+            🔄 한 판 더 하기!
+          </button>
+        </div>
+
+      </div>
+
+      <!-- TOY TABLETOP ARENA (노트 그림 그대로 구현한 새 모형 & 레버 & 앞 밥그릇 & 가운데 지렁이 그릇!) -->
+      <div class="bg-gradient-to-b from-slate-900 via-slate-900 to-stone-950 border-2 border-stone-600 rounded-3xl p-4 md:p-6 shadow-inner space-y-5">
+        
+        <!-- Center Worm Dish (가운데 지렁이 접시 - 15개 피규어) -->
+        <div class="max-w-lg mx-auto bg-gradient-to-b from-amber-950/70 to-stone-900 border-4 border-amber-600/80 rounded-3xl p-4 text-center shadow-lg space-y-2">
+          <div class="flex items-center justify-between px-2">
+            <span class="text-xs font-extrabold text-amber-300">🍲 가운데 지렁이 접시</span>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-400 text-slate-950">
+              남은 지렁이: <span id="centerWormCount">15</span>마리
+            </span>
+          </div>
+
+          <div id="centerWormDish" class="min-h-[76px] bg-stone-950/80 border-2 border-amber-800/60 rounded-2xl p-3 flex flex-wrap items-center justify-center gap-2">
+            <!-- Wriggling worm figures rendered here -->
+          </div>
+        </div>
+
+        <!-- 2~4 Bird Stations Grid (Each has: Bird Figure + Rear Lever + Front Bowl!) -->
+        <div id="birdStationsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Populated dynamically by JS for 2, 3, or 4 birds -->
+        </div>
+
+      </div>
+
+      <!-- Original Rules Summary Card -->
+      <div class="bg-slate-900/60 border border-slate-700/80 rounded-2xl p-4 space-y-2">
+        <div class="text-xs font-extrabold text-lime-400 flex items-center gap-1.5">
+          <span>📜</span>
+          <span>수석 디자이너의 공식 <새와 지렁이> 규칙 요약</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-300 leading-relaxed">
+          <ul class="space-y-1 list-disc list-inside">
+            <li><strong>새 모형 개수</strong>: 최대 <strong>4개</strong> (게임 인원: <strong>2 ~ 4명</strong>)</li>
+            <li><strong>지렁이 피규어 개수</strong>: <strong>15개</strong> (업그레이드 완료!)</li>
+            <li><strong>새 조종 방법</strong>: 새 모형 <strong>뒤에 있는 레버를 내리면</strong> 새가 숙여서 지렁이를 집습니다!</li>
+          </ul>
+          <ul class="space-y-1 list-disc list-inside">
+            <li><strong>진행 규칙</strong>: 주사위가 나온 개수만큼 레버를 내려 지렁이 가져가기!</li>
+            <li><strong>밥그릇 보관</strong>: 가져온 지렁이는 새 <strong>앞에 있는 밥그릇</strong>에다 둡니다.</li>
+            <li><strong>승리 조건</strong>: 지렁이를 <strong>가장 많이 가져간 사람이 승!</strong> 🏆</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Original Sketch Modal -->
+  <div id="sketchModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onclick="toggleSketchModal(false)">
+    <div class="bg-slate-900 border-2 border-lime-400 rounded-3xl max-w-2xl w-full p-4 space-y-3" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-black text-lime-300">🎨 <새와 지렁이> 원작 노트 설계도</h3>
+        <button onclick="toggleSketchModal(false)" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-500 text-white">닫기 ✕</button>
+      </div>
+      <img src="sketch.jpg" alt="새와 지렁이 원작 스케치" class="w-full rounded-2xl border border-slate-700 max-h-[75vh] object-contain mx-auto" />
+    </div>
+  </div>
+
+  <script>
+    function toggleSketchModal(show) {
+      document.getElementById('sketchModal').classList.toggle('hidden', !show);
+    }
+
+    // Web Audio Synthesizer
+    let audioCtx = null;
+    function playSound(type) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const now = audioCtx.currentTime;
+
+        if (type === 'lever') {
+          // Mechanical lever clack + bird chirp!
+          const osc1 = audioCtx.createOscillator();
+          const gain1 = audioCtx.createGain();
+          osc1.type = 'triangle';
+          osc1.frequency.setValueAtTime(180, now);
+          osc1.frequency.exponentialRampToValueAtTime(520, now + 0.08);
+          gain1.gain.setValueAtTime(0.22, now);
+          gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+          osc1.connect(gain1);
+          gain1.connect(audioCtx.destination);
+          osc1.start(now);
+          osc1.stop(now + 0.09);
+
+          const osc2 = audioCtx.createOscillator();
+          const gain2 = audioCtx.createGain();
+          osc2.type = 'sine';
+          osc2.frequency.setValueAtTime(680, now + 0.07);
+          osc2.frequency.exponentialRampToValueAtTime(1120, now + 0.17);
+          gain2.gain.setValueAtTime(0.18, now + 0.07);
+          gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+          osc2.connect(gain2);
+          gain2.connect(audioCtx.destination);
+          osc2.start(now + 0.07);
+          osc2.stop(now + 0.18);
+        } else if (type === 'dice') {
+          for (let i = 0; i < 4; i++) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(240 + i * 90, now + i * 0.055);
+            gain.gain.setValueAtTime(0.13, now + i * 0.055);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.055 + 0.05);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + i * 0.055);
+            osc.stop(now + i * 0.055 + 0.05);
+          }
+        } else if (type === 'win') {
+          const notes = [523.25, 659.25, 783.99, 1046.5];
+          notes.forEach((freq, idx) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.11);
+            gain.gain.setValueAtTime(0.2, now + idx * 0.11);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.11 + 0.28);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + idx * 0.11);
+            osc.stop(now + idx * 0.11 + 0.28);
+          });
+        }
+      } catch (e) {}
+    }
+
+    const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+
+    // 4 Bird Models (새 모형 개수: 4개)
+    const BIRD_MODELS = [
+      {
+        id: 0,
+        name: '파랑새',
+        emoji: '🐦',
+        colorBorder: 'border-sky-400',
+        colorBg: 'from-sky-950/50 to-slate-900',
+        badgeBg: 'bg-sky-400 text-slate-950',
+        leverColor: 'from-sky-500 to-blue-700 border-sky-200',
+        facing: 'right' // Left column birds face right toward center dish
+      },
+      {
+        id: 1,
+        name: '노랑새',
+        emoji: '🐤',
+        colorBorder: 'border-amber-400',
+        colorBg: 'from-amber-950/50 to-slate-900',
+        badgeBg: 'bg-amber-400 text-slate-950',
+        leverColor: 'from-amber-500 to-orange-700 border-amber-200',
+        facing: 'left'  // Right column birds face left toward center dish
+      },
+      {
+        id: 2,
+        name: '빨강새',
+        emoji: '🦜',
+        colorBorder: 'border-rose-400',
+        colorBg: 'from-rose-950/50 to-slate-900',
+        badgeBg: 'bg-rose-400 text-slate-950',
+        leverColor: 'from-rose-500 to-red-700 border-rose-200',
+        facing: 'right'
+      },
+      {
+        id: 3,
+        name: '초록새',
+        emoji: '🦚',
+        colorBorder: 'border-emerald-400',
+        colorBg: 'from-emerald-950/50 to-slate-900',
+        badgeBg: 'bg-emerald-400 text-slate-950',
+        leverColor: 'from-emerald-500 to-teal-700 border-emerald-200',
+        facing: 'left'
+      }
+    ];
+
+    const WORM_COLORS = [
+      'bg-pink-400 border-pink-200',
+      'bg-rose-400 border-rose-200',
+      'bg-amber-400 border-amber-200',
+      'bg-lime-400 border-lime-200',
+      'bg-orange-400 border-orange-200'
+    ];
+
+    let state = {
+      playerCount: 2, // 2~4명
+      initialWorms: 15, // 지렁이 개수 15개로 수정!
+      vsAi: true, // true: 1P is human, 2P..4P are AI robots
+      phase: 'DICE', // 'DICE' | 'ROLLING' | 'LEVER' | 'GAMEOVER'
+      activePlayerIdx: 0, // 0 .. playerCount-1
+      remainingPecks: 0,
+      centerWorms: [],
+      birdBowls: [[], [], [], []],
+      peckingBirdIdx: null
+    };
+
+    function initWorms() {
+      state.centerWorms = [];
+      for (let i = 0; i < state.initialWorms; i++) {
+        state.centerWorms.push({
+          id: 'worm_' + i,
+          colorClass: WORM_COLORS[i % WORM_COLORS.length]
+        });
+      }
+      state.birdBowls = [[], [], [], []];
+    }
+
+    function setPlayerCount(cnt) {
+      state.playerCount = cnt;
+      resetGame();
+    }
+
+    function setWormCount(cnt) {
+      state.initialWorms = cnt;
+      resetGame();
+    }
+
+    function toggleVsMode() {
+      state.vsAi = !state.vsAi;
+      document.getElementById('btnVsMode').textContent =
+        state.vsAi ? '🤖 1P vs 로봇(AI)' : '👨‍👩‍👧‍👦 다 같이 직접 조작';
+      resetGame();
+    }
+
+    function resetGame() {
+      state.phase = 'DICE';
+      state.activePlayerIdx = 0;
+      state.remainingPecks = 0;
+      state.peckingBirdIdx = null;
+      initWorms();
+      document.getElementById('diceBox').textContent = '🎲';
+
+      playSound('lever');
+      updateStatus(
+        `새 모형 ${state.playerCount}개와 지렁이 피규어 ${state.initialWorms}개가 준비되었어요!`,
+        '순서대로 주사위를 굴려 나온 수만큼 새 뒤에 있는 레버를 내리세요!'
+      );
+      renderUI();
+    }
+
+    function isAiPlayer(idx) {
+      return state.vsAi && idx > 0;
+    }
+
+    function getPlayerLabel(idx) {
+      const bird = BIRD_MODELS[idx];
+      if (idx === 0) return `${bird.emoji} ${bird.name}(1P)`;
+      return state.vsAi
+        ? `${bird.emoji} ${bird.name} 로봇(${idx + 1}P)`
+        : `${bird.emoji} ${bird.name}(${idx + 1}P)`;
+    }
+
+    function updateStatus(title, sub) {
+      document.getElementById('statusTitle').textContent = title;
+      document.getElementById('statusSub').textContent = sub;
+    }
+
+    function renderCenterDish() {
+      document.getElementById('centerWormCount').textContent = state.centerWorms.length;
+      const dish = document.getElementById('centerWormDish');
+      dish.innerHTML = '';
+
+      if (state.centerWorms.length === 0) {
+        dish.innerHTML = `<div class="text-xs font-extrabold text-amber-300 py-3">🎉 접시의 지렁이 ${state.initialWorms}마리를 모두 가져갔어요!</div>`;
+        return;
+      }
+
+      state.centerWorms.forEach((w, idx) => {
+        const badge = document.createElement('div');
+        badge.className = `animate-worm px-2.5 py-1 rounded-full border-2 ${w.colorClass} text-slate-950 font-black text-xs shadow flex items-center gap-1`;
+        badge.style.animationDelay = `${(idx % 5) * 0.2}s`;
+        badge.innerHTML = `<span>🪱</span><span class="text-[10px]">#${idx + 1}</span>`;
+        dish.appendChild(badge);
+      });
+    }
+
+    function renderBirdStations() {
+      const grid = document.getElementById('birdStationsGrid');
+      grid.innerHTML = '';
+
+      for (let idx = 0; idx < state.playerCount; idx++) {
+        const bird = BIRD_MODELS[idx];
+        const bowlWorms = state.birdBowls[idx];
+        const isCurrentTurn = state.phase !== 'GAMEOVER' && state.activePlayerIdx === idx;
+        const canPullLever = state.phase === 'LEVER' && state.activePlayerIdx === idx && !isAiPlayer(idx);
+        const isPecking = state.peckingBirdIdx === idx;
+
+        const card = document.createElement('div');
+        card.className = `rounded-3xl border-2 p-4 bg-gradient-to-b ${bird.colorBg} transition-all flex flex-col justify-between gap-3 ${
+          isCurrentTurn ? `${bird.colorBorder} ring-2 ring-lime-400/60 shadow-lg` : 'border-slate-700/80 opacity-85'
+        }`;
+
+        // Layout: Just like the notebook sketch!
+        // Outer side: [뒤에 있는 레버] -> Middle: [새 모형 (눈, 부리, 날개, 다리)] -> Inner side: [앞에 있는 밥그릇]
+        const peckAnimClass = isPecking
+          ? (bird.facing === 'right' ? 'animate-peck-right' : 'animate-peck-left')
+          : '';
+        const leverAnimClass = isPecking
+          ? (bird.facing === 'right' ? 'animate-lever-left' : 'animate-lever-right')
+          : '';
+
+        const leverButtonHtml = `
+          <div class="flex flex-col items-center gap-1 shrink-0">
+            <span class="text-[10px] font-extrabold text-amber-300">뒤에 있는 레버</span>
+            <button
+              onclick="pullBirdLever(${idx})"
+              ${canPullLever ? '' : 'disabled'}
+              class="w-20 h-20 rounded-2xl bg-gradient-to-br ${bird.leverColor} border-4 shadow-lg flex flex-col items-center justify-center text-white font-black transition transform active:translate-y-1 disabled:opacity-40 disabled:cursor-not-allowed ${
+                canPullLever ? 'animate-glow cursor-pointer hover:scale-105' : ''
+              } ${leverAnimClass}"
+              title="뒤에 있는 레버를 내리면 새가 지렁이를 집습니다!"
+            >
+              <span class="text-2xl">🕹️</span>
+              <span class="text-[11px] mt-0.5">레버 내리기!</span>
+            </button>
+          </div>
+        `;
+
+        // Custom SVG Bird matching the notebook sketch (tall bird with big eye, beak, wing, and post legs!)
+        const flipSvg = bird.facing === 'left' ? 'scale(-1, 1)' : 'scale(1, 1)';
+        const birdFigureHtml = `
+          <div class="flex flex-col items-center">
+            <div class="bird-body-pivot ${peckAnimClass}">
+              <svg width="92" height="110" viewBox="0 0 100 120" style="transform: ${flipSvg};">
+                <!-- Legs / Post -->
+                <rect x="42" y="84" width="6" height="32" rx="3" fill="#cbd5e1" stroke="#475569" stroke-width="2" />
+                <rect x="52" y="84" width="6" height="32" rx="3" fill="#cbd5e1" stroke="#475569" stroke-width="2" />
+                <path d="M35 114 L65 114" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" />
+                <!-- Bird Body -->
+                <path d="M30 50 Q25 20 48 16 Q68 16 66 45 Q70 72 50 86 Q28 84 30 50 Z" fill="#f8fafc" stroke="#1e293b" stroke-width="3.5" />
+                <!-- Wing (just like the notebook drawing!) -->
+                <path d="M36 46 Q28 65 40 76 L45 70 L50 76 L54 68 Q56 54 46 46 Z" fill="#e2e8f0" stroke="#334155" stroke-width="2.5" />
+                <!-- Big Round Eye -->
+                <circle cx="52" cy="30" r="7" fill="#ffffff" stroke="#0f172a" stroke-width="2.5" />
+                <circle cx="54" cy="30" r="3" fill="#0f172a" />
+                <!-- Big Beak pointing forward -->
+                <polygon points="65,24 94,31 65,38" fill="#f59e0b" stroke="#78350f" stroke-width="2.5" />
+                <line x1="66" y1="31" x2="90" y2="31" stroke="#78350f" stroke-width="2" />
+              </svg>
+            </div>
+            <span class="text-xs font-black text-white -mt-1">${bird.emoji} ${bird.name} 모형</span>
+          </div>
+        `;
+
+        const frontBowlHtml = `
+          <div class="flex-1 min-w-[110px] bg-slate-950/75 border-2 border-slate-600 rounded-2xl p-2.5 flex flex-col justify-between min-h-[96px]">
+            <div class="flex items-center justify-between text-[11px] font-bold text-slate-300 border-b border-slate-800 pb-1">
+              <span>🥣 앞에 있는 밥그릇</span>
+              <span class="text-lime-400 font-black">${bowlWorms.length}개</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-1 py-1.5 min-h-[44px]">
+              ${
+                bowlWorms.length === 0
+                  ? '<span class="text-[11px] text-slate-500 mx-auto">아직 지렁이 없음</span>'
+                  : bowlWorms.map(() => '<span class="text-lg animate-pop">🪱</span>').join('')
+              }
+            </div>
+          </div>
+        `;
+
+        card.innerHTML = `
+          <!-- Station Header -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-black ${bird.badgeBg}">
+                ${idx + 1}P · ${bird.name}
+              </span>
+              <span class="text-xs font-bold text-slate-300">
+                ${isAiPlayer(idx) ? '🤖 로봇 조종' : '🙋 직접 조종'}
+              </span>
+            </div>
+            ${
+              isCurrentTurn
+                ? '<span class="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-lime-400 text-slate-950 animate-pulse">지금 차례!</span>'
+                : ''
+            }
+          </div>
+
+          <!-- Mechanical Toy Assembly: Rear Lever + Bird Model + Front Bowl -->
+          <div class="flex items-center justify-between gap-2 sm:gap-3 pt-1">
+            ${
+              bird.facing === 'right'
+                ? `${leverButtonHtml}${birdFigureHtml}${frontBowlHtml}`
+                : `${frontBowlHtml}${birdFigureHtml}${leverButtonHtml}`
+            }
+          </div>
+        `;
+
+        grid.appendChild(card);
+      }
+    }
+
+    function renderUI() {
+      // Player count buttons
+      [2, 3, 4].forEach(n => {
+        const b = document.getElementById('pCntBtn' + n);
+        b.className = state.playerCount === n
+          ? 'px-2.5 py-1 rounded-lg bg-lime-400 text-slate-950 font-black transition'
+          : 'px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition';
+      });
+
+      // Worm count buttons
+      [15, 20].forEach(n => {
+        const b = document.getElementById('wCntBtn' + n);
+        b.className = state.initialWorms === n
+          ? 'px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-black transition'
+          : 'px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition';
+      });
+
+      // Step progress bar
+      const activeStep =
+        (state.phase === 'DICE' || state.phase === 'ROLLING') ? 1 :
+        state.phase === 'LEVER' ? 2 : 3;
+
+      for (let i = 1; i <= 3; i++) {
+        const el = document.getElementById('stepIndicator' + i);
+        if (i === activeStep) {
+          el.className = 'p-2 rounded-xl border-2 border-lime-400 bg-lime-500/15 text-lime-300 scale-[1.02] transition-all';
+        } else {
+          el.className = 'p-2 rounded-xl border border-[var(--border)] opacity-60 transition-all';
+        }
+      }
+
+      // Phase controls
+      document.getElementById('phaseDice').classList.toggle('hidden', !(state.phase === 'DICE' || state.phase === 'ROLLING'));
+      document.getElementById('phaseLever').classList.toggle('hidden', state.phase !== 'LEVER');
+      document.getElementById('phaseGameOver').classList.toggle('hidden', state.phase !== 'GAMEOVER');
+
+      const whoLabel = getPlayerLabel(state.activePlayerIdx);
+      const aiTurn = isAiPlayer(state.activePlayerIdx);
+
+      if (state.phase === 'DICE' || state.phase === 'ROLLING') {
+        document.getElementById('turnBadgeText').textContent = `${state.activePlayerIdx + 1}번 새 차례`;
+        document.getElementById('diceTurnTitle').textContent = `${whoLabel}가 주사위를 굴릴 차례예요!`;
+        const btnRoll = document.getElementById('btnRollDice');
+        btnRoll.disabled = aiTurn || state.phase === 'ROLLING';
+        btnRoll.textContent = aiTurn ? `🤖 ${whoLabel}가 주사위를 굴리는 중...` : '🎲 주사위 굴리기!';
+      } else if (state.phase === 'LEVER') {
+        document.getElementById('remainingPecksText').textContent = state.remainingPecks;
+        document.getElementById('leverTurnTitle').textContent = aiTurn
+          ? `🤖 ${whoLabel}가 뒤에 있는 레버를 내리고 있어요! (${state.remainingPecks}번 남음)`
+          : `${whoLabel} 뒤에 있는 [레버]를 내려 지렁이를 집으세요! (${state.remainingPecks}번 남음)`;
+        const btnQuick = document.getElementById('btnQuickPullLever');
+        btnQuick.disabled = aiTurn;
+        btnQuick.textContent = aiTurn
+          ? '🤖 로봇이 레버를 내리는 중...'
+          : `🕹️ 철컥! 레버 내려서 지렁이 집기! (${state.remainingPecks}개 남음)`;
+      }
+
+      renderCenterDish();
+      renderBirdStations();
+    }
+
+    // STEP 1: Roll Dice
+    function rollDice() {
+      if (state.phase !== 'DICE') return;
+      state.phase = 'ROLLING';
+      playSound('dice');
+      renderUI();
+
+      const diceBox = document.getElementById('diceBox');
+      diceBox.classList.add('animate-dice');
+
+      setTimeout(() => {
+        diceBox.classList.remove('animate-dice');
+        const roll = Math.floor(Math.random() * 6) + 1;
+        diceBox.textContent = DICE_FACES[roll - 1];
+
+        const allowedPecks = Math.min(roll, state.centerWorms.length);
+        state.remainingPecks = allowedPecks;
+        state.phase = 'LEVER';
+
+        const whoLabel = getPlayerLabel(state.activePlayerIdx);
+        updateStatus(
+          `🎲 ${whoLabel} 주사위 [${roll}]! 지렁이를 ${allowedPecks}마리 가져갈 수 있어요!`,
+          '새 모형 뒤에 있는 레버를 내리면 새가 앞 밥그릇에 지렁이를 담아옵니다!'
+        );
+        renderUI();
+
+        if (isAiPlayer(state.activePlayerIdx)) {
+          setTimeout(() => {
+            autoAiPullLeverLoop();
+          }, 750);
+        }
+      }, 480);
+    }
+
+    function autoAiPullLeverLoop() {
+      if (state.phase !== 'LEVER' || !isAiPlayer(state.activePlayerIdx)) return;
+      pullBirdLever(state.activePlayerIdx);
+      if (state.phase === 'LEVER' && state.remainingPecks > 0) {
+        setTimeout(() => {
+          autoAiPullLeverLoop();
+        }, 550);
+      }
+    }
+
+    // STEP 2: Pull the Rear Lever (뒤에 있는 레버를 내리면 된다!)
+    function pullActiveBirdLever() {
+      if (state.phase !== 'LEVER') return;
+      pullBirdLever(state.activePlayerIdx);
+    }
+
+    function pullBirdLever(birdIdx) {
+      if (state.phase !== 'LEVER' || birdIdx !== state.activePlayerIdx) return;
+      if (state.remainingPecks <= 0 || state.centerWorms.length === 0) return;
+
+      // Pop 1 worm from center dish into this bird's front bowl
+      const grabbedWorm = state.centerWorms.shift();
+      state.birdBowls[birdIdx].push(grabbedWorm);
+      state.remainingPecks--;
+      state.peckingBirdIdx = birdIdx;
+
+      playSound('lever');
+      renderUI();
+
+      setTimeout(() => {
+        state.peckingBirdIdx = null;
+        renderBirdStations();
+      }, 360);
+
+      // Check if center dish is now empty -> Game Over!
+      if (state.centerWorms.length === 0) {
+        setTimeout(() => {
+          finishGame();
+        }, 480);
+        return;
+      }
+
+      // Check if player finished all their dice pecks -> Next bird's turn!
+      if (state.remainingPecks <= 0) {
+        setTimeout(() => {
+          advanceToNextPlayer();
+        }, 520);
+      }
+    }
+
+    function advanceToNextPlayer() {
+      state.activePlayerIdx = (state.activePlayerIdx + 1) % state.playerCount;
+      state.phase = 'DICE';
+      const whoLabel = getPlayerLabel(state.activePlayerIdx);
+
+      updateStatus(
+        `이제 ${whoLabel} 차례입니다! 주사위를 굴려주세요!`,
+        `가운데 접시에 지렁이가 ${state.centerWorms.length}마리 남았어요!`
+      );
+      renderUI();
+
+      if (isAiPlayer(state.activePlayerIdx)) {
+        setTimeout(() => {
+          rollDice();
+        }, 900);
+      }
+    }
+
+    // STEP 3: Winner Determination (지렁이를 가장 많이 가져간 사람이 승!)
+    function finishGame() {
+      state.phase = 'GAMEOVER';
+      playSound('win');
+
+      let maxWorms = -1;
+      for (let i = 0; i < state.playerCount; i++) {
+        if (state.birdBowls[i].length > maxWorms) {
+          maxWorms = state.birdBowls[i].length;
+        }
+      }
+
+      const winners = [];
+      const scoreSummary = [];
+      for (let i = 0; i < state.playerCount; i++) {
+        const b = BIRD_MODELS[i];
+        const cnt = state.birdBowls[i].length;
+        scoreSummary.push(`${b.emoji}${b.name}: ${cnt}개`);
+        if (cnt === maxWorms) {
+          winners.push(getPlayerLabel(i));
+        }
+      }
+
+      const winnerText = winners.length === 1
+        ? `🎉 ${winners[0]} 승리!! (지렁이 ${maxWorms}마리 획득!)`
+        : `🎉 ${winners.join(' & ')} 공동 승리!! (지렁이 ${maxWorms}마리씩 획득!)`;
+
+      document.getElementById('winnerTitle').textContent = winnerText;
+      document.getElementById('winnerSub').textContent =
+        `최종 밥그릇 기록 — ${scoreSummary.join(' · ')}`;
+
+      updateStatus(
+        winnerText,
+        `최종 밥그릇 점수: ${scoreSummary.join(' / ')}`
+      );
+      renderUI();
+    }
+
+    // Initialize on load
+    initWorms();
+    renderUI();
+  </script>
+</body>
+</html>

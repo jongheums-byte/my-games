@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2호 게임: 배개 싸움 - 맨 위 바위에 먼저 도착하라!</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --background: #0f172a;
+      --foreground: #f8fafc;
+      --card: #1e293b;
+      --border: #334155;
+      --muted-foreground: #94a3b8;
+      --secondary: #334155;
+      --secondary-foreground: #f1f5f9;
+    }
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-4px); }
+    }
+    @keyframes bounceHop {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-14px) scale(1.2); }
+    }
+    @keyframes fallDown {
+      0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+      30% { transform: translateY(-10px) rotate(-20deg) scale(1.1); }
+      100% { transform: translateY(60px) rotate(360deg) scale(0.5); opacity: 0.2; }
+    }
+    @keyframes spinKnob {
+      0% { transform: rotate(0deg); }
+      25% { transform: rotate(-35deg) scale(1.1); }
+      50% { transform: rotate(180deg) scale(1.15); }
+      75% { transform: rotate(320deg) scale(1.1); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7); }
+      50% { box-shadow: 0 0 20px 6px rgba(251, 191, 36, 0.9); }
+    }
+    @keyframes diceRoll {
+      0% { transform: rotate(0deg) scale(1); }
+      25% { transform: rotate(90deg) scale(1.15); }
+      50% { transform: rotate(180deg) scale(0.95); }
+      75% { transform: rotate(270deg) scale(1.1); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+    @keyframes cardFlip {
+      0% { transform: rotateY(90deg) scale(0.7); opacity: 0; }
+      70% { transform: rotateY(-10deg) scale(1.05); opacity: 1; }
+      100% { transform: rotateY(0deg) scale(1); opacity: 1; }
+    }
+    .animate-float { animation: floatSlow 2.5s ease-in-out infinite; }
+    .animate-hop { animation: bounceHop 0.32s ease-in-out; }
+    .animate-fall { animation: fallDown 0.65s ease-in forwards; }
+    .animate-knob { animation: spinKnob 0.7s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .animate-glow { animation: pulseGlow 1.3s infinite; }
+    .animate-dice { animation: diceRoll 0.45s ease-in-out infinite; }
+    .animate-card { animation: cardFlip 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+    /* Mound/Dome shaped boulder like the notebook drawing */
+    .rock-boulder {
+      border-radius: 52% 52% 22% 22% / 65% 65% 18% 18%;
+      transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    }
+    .rock-boulder:hover {
+      transform: translateY(-2px);
+    }
+    .pillow-badge {
+      border-radius: 6px;
+      box-shadow: inset 0 -2px 0 rgba(0,0,0,0.15);
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased min-h-screen p-3 md:p-5 select-none">
+  <div class="max-w-5xl mx-auto space-y-4">
+
+    <!-- Top Navigation Bar back to Game Hub -->
+    <div class="flex items-center justify-between">
+      <a href="../../index.html" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-500/30 transition">
+        <span>🏠 게임 연구소 목록으로</span>
+      </a>
+      <button onclick="toggleSketchModal(true)" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition">
+        <span>🎨 내 원작 설계도 그림 보기</span>
+      </button>
+    </div>
+
+    <!-- Header Banner -->
+    <header class="bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl bg-amber-500/15 border-2 border-amber-500/40 flex items-center justify-center text-2xl shrink-0">
+          🐸🐰
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+              2호 작품 · 23칸 바위산 정복 보드게임
+            </span>
+            <span class="text-xs text-[var(--muted-foreground)] font-medium">먼저 도착(맨 위에 바위)해야 승!</span>
+          </div>
+          <h1 class="text-xl md:text-2xl font-extrabold tracking-tight flex items-center gap-2 mt-0.5">
+            <span>배개 싸움</span>
+            <span class="text-xs font-extrabold px-2 py-0.5 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-500/30">베개 그림 = 카드 뽑기!</span>
+          </h1>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="flex flex-wrap items-center gap-2 justify-end">
+        <button id="btnVsMode" onclick="toggleVsMode()" class="px-3 py-1.5 rounded-xl text-xs font-bold border border-[var(--border)] bg-[var(--secondary)] text-[var(--secondary-foreground)] hover:opacity-90 transition">
+          🤖 1P(개구리) vs 로봇(토끼)
+        </button>
+        <button onclick="shufflePillows()" class="px-3 py-1.5 rounded-xl text-xs font-bold border border-sky-500/40 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 transition">
+          🛏️ 배개 위치 바꾸기 (5곳)
+        </button>
+        <button onclick="resetGame()" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500 text-white hover:bg-rose-600 transition">
+          🔄 새 게임
+        </button>
+      </div>
+    </header>
+
+    <!-- Step Progress Bar -->
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-3 shadow-sm">
+      <div class="grid grid-cols-4 gap-2 text-center text-xs font-bold">
+        <div id="stepIndicator1" class="p-2 rounded-xl border transition-all">
+          <div class="text-base mb-0.5">✌️ 1단계</div>
+          <div>가위바위보 순서 정하기</div>
+        </div>
+        <div id="stepIndicator2" class="p-2 rounded-xl border transition-all">
+          <div class="text-base mb-0.5">🎲 2단계</div>
+          <div>주사위 굴려 바위 오르기</div>
+        </div>
+        <div id="stepIndicator3" class="p-2 rounded-xl border transition-all">
+          <div class="text-base mb-0.5">🃏 3단계</div>
+          <div>배개 바위에서 카드 뽑기</div>
+        </div>
+        <div id="stepIndicator4" class="p-2 rounded-xl border transition-all">
+          <div class="text-base mb-0.5">⚙️ 4단계</div>
+          <div>떨어질 때 레버 돌리기!</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Game Area -->
+    <div class="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-4 md:p-6 shadow-md space-y-5">
+
+      <!-- Status Message Banner -->
+      <div id="statusBanner" class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-center">
+        <p id="statusTitle" class="text-base md:text-lg font-extrabold text-[var(--foreground)]">
+          가위바위보로 누가 먼저 출발할지 정해요!
+        </p>
+        <p id="statusSub" class="text-xs md:text-sm text-[var(--muted-foreground)] mt-0.5">
+          가위바위보 이긴 사람이 먼저 주사위를 굴려 바위산을 올라갑니다!
+        </p>
+      </div>
+
+      <!-- Player Status Cards (Frog vs Rabbit) -->
+      <div class="grid grid-cols-2 gap-3">
+        <!-- Player 1: Frog -->
+        <div id="p1Card" class="p-3.5 rounded-2xl border-2 border-emerald-500/50 bg-emerald-950/25 flex items-center justify-between transition-all">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-3xl shadow-inner">
+              🐸
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-sm md:text-base font-black text-emerald-300">개구리 (1P)</span>
+                <span id="p1TurnBadge" class="hidden px-2 py-0.5 text-[11px] font-black rounded-full bg-emerald-400 text-slate-950 animate-pulse">
+                  내 차례!
+                </span>
+                <span id="p1SkipBadge" class="hidden px-2 py-0.5 text-[11px] font-black rounded-full bg-rose-500 text-white">
+                  💤 1번 쉬기
+                </span>
+              </div>
+              <div class="text-xs text-slate-300 mt-0.5">
+                현재 위치: <strong id="p1PosText" class="text-emerald-400">1번 바위 (시작)</strong>
+              </div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-[11px] text-slate-400 font-bold">남은 칸</div>
+            <div id="p1RemainText" class="text-lg font-black text-white">22칸</div>
+          </div>
+        </div>
+
+        <!-- Player 2: Rabbit -->
+        <div id="p2Card" class="p-3.5 rounded-2xl border-2 border-pink-500/50 bg-pink-950/25 flex items-center justify-between transition-all">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-2xl bg-pink-500/20 border-2 border-pink-400 flex items-center justify-center text-3xl shadow-inner">
+              🐰
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span id="p2NameLabel" class="text-sm md:text-base font-black text-pink-300">토끼 로봇 (2P)</span>
+                <span id="p2TurnBadge" class="hidden px-2 py-0.5 text-[11px] font-black rounded-full bg-pink-400 text-slate-950 animate-pulse">
+                  차례!
+                </span>
+                <span id="p2SkipBadge" class="hidden px-2 py-0.5 text-[11px] font-black rounded-full bg-rose-500 text-white">
+                  💤 1번 쉬기
+                </span>
+              </div>
+              <div class="text-xs text-slate-300 mt-0.5">
+                현재 위치: <strong id="p2PosText" class="text-pink-400">1번 바위 (시작)</strong>
+              </div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-[11px] text-slate-400 font-bold">남은 칸</div>
+            <div id="p2RemainText" class="text-lg font-black text-white">22칸</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROCK MOUNTAIN MODEL + LEFT/RIGHT LEVERS (바위 모형 그림 & 양옆 돌리는 거) -->
+      <div class="relative bg-gradient-to-b from-slate-900 via-slate-900 to-stone-950 border-2 border-stone-600/80 rounded-3xl p-3 md:p-6 shadow-inner overflow-hidden">
+        
+        <!-- Mountain Header Label -->
+        <div class="flex items-center justify-between text-xs font-bold text-stone-400 mb-3 px-2">
+          <span>🪨 바위 모형 (총 23칸 · 배개 그림 5군데)</span>
+          <span class="text-amber-300">👑 23번 맨 위 바위(끝)에 먼저 도착하면 승리!</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+
+          <!-- LEFT LEVER: 토끼 떨어질 때 돌리는 거 -->
+          <div class="lg:col-span-2 flex flex-row lg:flex-col items-center justify-center gap-2 bg-stone-900/90 border-2 border-pink-500/40 rounded-2xl p-3 text-center">
+            <div class="text-xs font-extrabold text-pink-300 leading-tight">
+              🐰 토끼 떨어질 때<br/>돌리는 거
+            </div>
+            <button
+              id="btnRabbitLever"
+              onclick="pullFallLever('rabbit')"
+              disabled
+              class="w-20 h-20 rounded-2xl bg-gradient-to-br from-pink-600 to-rose-800 border-4 border-pink-300 shadow-lg flex flex-col items-center justify-center text-white font-black transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <span id="rabbitKnobIcon" class="text-2xl">⚙️</span>
+              <span class="text-[11px] mt-0.5">드르륵 돌리기!</span>
+            </button>
+            <div id="rabbitLeverHint" class="text-[11px] text-stone-400 font-semibold">
+              토끼가 떨어질 때 작동!
+            </div>
+          </div>
+
+          <!-- CENTER: 23-ROCK MOUNTAIN PYRAMID -->
+          <div class="lg:col-span-8 flex flex-col items-center space-y-2 py-2" id="rockMountainContainer">
+            <!-- JS will render the 5 tiers of 23 boulders here -->
+          </div>
+
+          <!-- RIGHT LEVER: 개구리 떨어질 때 돌리는 거 -->
+          <div class="lg:col-span-2 flex flex-row lg:flex-col items-center justify-center gap-2 bg-stone-900/90 border-2 border-emerald-500/40 rounded-2xl p-3 text-center">
+            <div class="text-xs font-extrabold text-emerald-300 leading-tight">
+              🐸 개구리 떨어질 때<br/>돌리는 거
+            </div>
+            <button
+              id="btnFrogLever"
+              onclick="pullFallLever('frog')"
+              disabled
+              class="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-800 border-4 border-emerald-300 shadow-lg flex flex-col items-center justify-center text-white font-black transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <span id="frogKnobIcon" class="text-2xl">⚙️</span>
+              <span class="text-[11px] mt-0.5">드르륵 돌리기!</span>
+            </button>
+            <div id="frogLeverHint" class="text-[11px] text-stone-400 font-semibold">
+              개구리가 떨어질 때 작동!
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- INTERACTIVE ACTION DECK (RPS / DICE / CARD DRAW / LEVER / GAMEOVER) -->
+      <div class="bg-slate-900/90 border-2 border-slate-700 rounded-2xl p-4">
+
+        <!-- PHASE 1: RPS (가위바위보 이긴 사람이 먼저!) -->
+        <div id="phaseRps" class="space-y-3 text-center">
+          <div class="text-sm font-extrabold text-amber-300">
+            ✊✌️🖐️ 가위바위보 이긴 사람이 먼저 출발합니다!
+          </div>
+          <div id="rpsPromptText" class="text-xs text-slate-300">
+            개구리(1P)가 낼 가위바위보를 선택해 주세요!
+          </div>
+          <div class="flex items-center justify-center gap-3 pt-1">
+            <button onclick="playRps('scissors')" class="px-5 py-3 rounded-2xl bg-slate-800 hover:bg-emerald-500/20 border-2 border-slate-600 hover:border-emerald-400 transition flex flex-col items-center gap-1">
+              <span class="text-3xl">✌️</span>
+              <span class="text-xs font-extrabold">가위</span>
+            </button>
+            <button onclick="playRps('rock')" class="px-5 py-3 rounded-2xl bg-slate-800 hover:bg-emerald-500/20 border-2 border-slate-600 hover:border-emerald-400 transition flex flex-col items-center gap-1">
+              <span class="text-3xl">✊</span>
+              <span class="text-xs font-extrabold">바위</span>
+            </button>
+            <button onclick="playRps('paper')" class="px-5 py-3 rounded-2xl bg-slate-800 hover:bg-emerald-500/20 border-2 border-slate-600 hover:border-emerald-400 transition flex flex-col items-center gap-1">
+              <span class="text-3xl">🖐️</span>
+              <span class="text-xs font-extrabold">보</span>
+            </button>
+          </div>
+          <div id="rpsResultBox" class="hidden pt-2 text-sm font-black text-emerald-300"></div>
+        </div>
+
+        <!-- PHASE 2: DICE ROLL (주사위 굴리기) -->
+        <div id="phaseDice" class="hidden flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div class="flex items-center gap-4">
+            <div id="diceBox" class="w-16 h-16 rounded-2xl bg-white text-slate-900 border-4 border-amber-400 shadow-lg flex items-center justify-center text-4xl font-black">
+              🎲
+            </div>
+            <div class="text-left">
+              <div id="diceTurnTitle" class="text-base font-black text-white">
+                🐸 개구리(1P)의 주사위 차례!
+              </div>
+              <div id="diceTurnSub" class="text-xs text-slate-300 mt-0.5">
+                주사위를 굴려 나온 수만큼 바위를 올라갑니다.
+              </div>
+            </div>
+          </div>
+
+          <button
+            id="btnRollDice"
+            onclick="rollDice()"
+            class="w-full sm:w-auto px-6 py-3.5 rounded-2xl font-black text-sm bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-lg transition transform active:scale-95"
+          >
+            🎲 주사위 굴리기!
+          </button>
+        </div>
+
+        <!-- PHASE 3: PILLOW CARD DRAW (배개 그림이 보일 때 카드 뽑기!) -->
+        <div id="phaseCard" class="hidden space-y-4 text-center py-2">
+          <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-sky-500/20 border border-sky-400/40 text-sky-300 text-xs font-black">
+            <span>🛏️ 배개 그림 바위 도착!</span>
+            <span>카드를 1장 뽑으세요!</span>
+          </div>
+
+          <!-- Card selection / Revealed Card -->
+          <div id="cardDeckRow" class="flex flex-wrap items-center justify-center gap-3 py-2">
+            <!-- 3 Face-down mystery pillow cards to pick from -->
+            <button onclick="drawPillowCard(0)" class="w-28 h-36 rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-700 to-slate-900 border-2 border-amber-300 shadow-lg hover:scale-105 transition flex flex-col items-center justify-center gap-2 p-2">
+              <span class="text-3xl">🛏️</span>
+              <span class="text-xs font-black text-amber-200">배개 카드 1</span>
+              <span class="text-[10px] text-indigo-200 bg-black/30 px-2 py-0.5 rounded-full">클릭해서 뽑기</span>
+            </button>
+            <button onclick="drawPillowCard(1)" class="w-28 h-36 rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-700 to-slate-900 border-2 border-amber-300 shadow-lg hover:scale-105 transition flex flex-col items-center justify-center gap-2 p-2">
+              <span class="text-3xl">🛏️</span>
+              <span class="text-xs font-black text-amber-200">배개 카드 2</span>
+              <span class="text-[10px] text-indigo-200 bg-black/30 px-2 py-0.5 rounded-full">클릭해서 뽑기</span>
+            </button>
+            <button onclick="drawPillowCard(2)" class="w-28 h-36 rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-700 to-slate-900 border-2 border-amber-300 shadow-lg hover:scale-105 transition flex flex-col items-center justify-center gap-2 p-2">
+              <span class="text-3xl">🛏️</span>
+              <span class="text-xs font-black text-amber-200">배개 카드 3</span>
+              <span class="text-[10px] text-indigo-200 bg-black/30 px-2 py-0.5 rounded-full">클릭해서 뽑기</span>
+            </button>
+          </div>
+
+          <!-- Revealed Card Display -->
+          <div id="revealedCardBox" class="hidden max-w-md mx-auto p-4 rounded-2xl border-2 bg-slate-800/90 animate-card space-y-2">
+            <div id="revealedCardEmoji" class="text-4xl">🃏</div>
+            <div id="revealedCardTitle" class="text-lg font-black text-amber-300">카드 이름</div>
+            <div id="revealedCardDesc" class="text-xs text-slate-200">카드 설명</div>
+            <div class="pt-2">
+              <button id="btnConfirmCard" onclick="applyRevealedCard()" class="px-5 py-2.5 rounded-xl font-black text-xs bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition">
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PHASE 4: LEVER WAIT (레버 돌리기 대기 안내) -->
+        <div id="phaseLever" class="hidden text-center py-2 space-y-2">
+          <div id="leverPromptTitle" class="text-base font-black text-rose-400 animate-bounce">
+            ⚙️ 바위산 옆에 있는 [돌리는 거] 레버를 눌러서 돌리세요!
+          </div>
+          <p id="leverPromptSub" class="text-xs text-slate-300">
+            레버를 돌리면 바위가 흔들리면서 "시작" 위치(1번 바위)로 떨어집니다!
+          </p>
+          <div>
+            <button id="btnQuickLever" onclick="triggerActiveLever()" class="mt-1 px-5 py-2.5 rounded-xl font-black text-xs bg-rose-500 hover:bg-rose-400 text-white shadow-lg transition">
+              ⚙️ 지금 바로 레버 드르륵 돌리기!
+            </button>
+          </div>
+        </div>
+
+        <!-- PHASE 5: GAME OVER (승리!) -->
+        <div id="phaseGameOver" class="hidden text-center py-3 space-y-3">
+          <div id="winnerEmoji" class="text-5xl animate-bounce">🏆</div>
+          <h3 id="winnerTitle" class="text-xl font-black text-amber-300">
+            개구리(1P) 맨 위 바위(끝) 도착 승리!!
+          </h3>
+          <p id="winnerSub" class="text-xs text-slate-300">
+            23번 꼭대기 바위에 가장 먼저 올라가 배개 싸움 챔피언이 되었어요!
+          </p>
+          <button onclick="resetGame()" class="px-6 py-3 rounded-2xl font-black text-sm bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg transition">
+            🔄 한 판 더 하기!
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Original Rules Summary Card -->
+      <div class="bg-slate-900/60 border border-slate-700/80 rounded-2xl p-4 space-y-2">
+        <div class="text-xs font-extrabold text-amber-400 flex items-center gap-1.5">
+          <span>📜</span>
+          <span>수석 디자이너의 공식 <배개 싸움> 규칙 요약</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-300 leading-relaxed">
+          <ul class="space-y-1 list-disc list-inside">
+            <li><strong>말 종류 (2개)</strong>: 🐸 개구리, 🐰 토끼</li>
+            <li><strong>순서와 이동</strong>: 가위바위보 이긴 사람이 먼저 주사위를 굴려 바위(총 23칸)를 올라갑니다.</li>
+            <li><strong>승리 조건</strong>: 맨 위에 있는 23번 바위(<strong>끝</strong>)에 먼저 도착해야 승!</li>
+            <li><strong>돌리는 거(레버)</strong>: 개구리나 토끼가 떨어질 때 양옆의 손잡이를 돌리면 <strong>"시작"(1번 바위)</strong> 위치로 떨어집니다!</li>
+          </ul>
+          <div class="bg-slate-950/60 rounded-xl p-2.5 border border-slate-800 space-y-1">
+            <div class="font-bold text-sky-300">🃏 카드 어떨 때 쓰냐면: 바위에 <배개 그림>(5군데)이 보일 때!</div>
+            <div class="text-[11px] text-slate-300 grid grid-cols-1 gap-0.5">
+              <span>1️⃣ <strong>상대 떨어짐 카드</strong>: 상대 말을 '시작' 바위로 떨어뜨림!</span>
+              <span>2️⃣ <strong>나 떨어짐 카드</strong>: 내 말이 '시작' 바위로 떨어짐 😭</span>
+              <span>3️⃣ <strong>나 1 뛰어넘기 카드</strong>: 내 차례가 와도 못하는 거 1번만!</span>
+              <span>4️⃣ <strong>상대 1 뛰어넘기 카드</strong>: 상대 차례 1번 못하게 하기!</span>
+              <span>5️⃣ <strong>나 2 뛰어넘기 카드</strong>: 내 차례 2번 쉬기!</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Original Sketch Modal -->
+  <div id="sketchModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onclick="toggleSketchModal(false)">
+    <div class="bg-slate-900 border-2 border-amber-400 rounded-3xl max-w-2xl w-full p-4 space-y-3" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-black text-amber-300">🎨 <배개 싸움> 원작 노트 설계도</h3>
+        <button onclick="toggleSketchModal(false)" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-500 text-white">닫기 ✕</button>
+      </div>
+      <img src="sketch.jpg" alt="배개 싸움 원작 스케치" class="w-full rounded-2xl border border-slate-700 max-h-[75vh] object-contain mx-auto" />
+    </div>
+  </div>
+
+  <script>
+    function toggleSketchModal(show) {
+      document.getElementById('sketchModal').classList.toggle('hidden', !show);
+    }
+
+    // Web Audio Sound Synthesizer
+    let audioCtx = null;
+    function playSound(type) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const now = audioCtx.currentTime;
+
+        if (type === 'hop') {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(340, now);
+          osc.frequency.exponentialRampToValueAtTime(680, now + 0.09);
+          gain.gain.setValueAtTime(0.16, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.1);
+        } else if (type === 'dice') {
+          for (let i = 0; i < 4; i++) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(240 + i * 85, now + i * 0.055);
+            gain.gain.setValueAtTime(0.12, now + i * 0.055);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.055 + 0.05);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + i * 0.055);
+            osc.stop(now + i * 0.055 + 0.05);
+          }
+        } else if (type === 'card') {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(520, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.14);
+          gain.gain.setValueAtTime(0.18, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.15);
+        } else if (type === 'fall') {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(420, now);
+          osc.frequency.exponentialRampToValueAtTime(65, now + 0.55);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.58);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.58);
+        } else if (type === 'win') {
+          const notes = [523.25, 659.25, 783.99, 1046.5];
+          notes.forEach((freq, idx) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.11);
+            gain.gain.setValueAtTime(0.2, now + idx * 0.11);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.11 + 0.28);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + idx * 0.11);
+            osc.stop(now + idx * 0.11 + 0.28);
+          });
+        }
+      } catch (e) {}
+    }
+
+    const TOTAL_ROCKS = 23;
+    const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+    const RPS_MAP = {
+      scissors: { emoji: '✌️', name: '가위', beats: 'paper' },
+      rock:     { emoji: '✊', name: '바위', beats: 'scissors' },
+      paper:    { emoji: '🖐️', name: '보',   beats: 'rock' }
+    };
+
+    // 5 Pillow Cards exactly as written in the notebook
+    const PILLOW_CARDS = [
+      {
+        id: 'opp_fall',
+        emoji: '💥⚙️',
+        title: '상대 떨어짐 카드!',
+        desc: '상대방 말을 떨어뜨립니다! 옆의 돌리는 레버를 돌려 상대를 "시작" 바위로 떨어뜨리세요!',
+        colorClass: 'border-emerald-400 text-emerald-300'
+      },
+      {
+        id: 'self_fall',
+        emoji: '😱🪨',
+        title: '나 떨어짐 카드!',
+        desc: '앗! 내 말이 미끄러졌어요! 레버가 돌아가면서 내가 "시작" 바위로 떨어집니다 ㅠㅠ',
+        colorClass: 'border-rose-400 text-rose-300'
+      },
+      {
+        id: 'self_skip_1',
+        emoji: '💤1️⃣',
+        title: '나 1 뛰어넘기 카드!',
+        desc: '(내 차례가 와도 못하는 거 1번만!) 다음 내 차례를 1번 쉽니다.',
+        colorClass: 'border-amber-400 text-amber-300'
+      },
+      {
+        id: 'opp_skip_1',
+        emoji: '🎯💤',
+        title: '상대 1 뛰어넘기 카드!',
+        desc: '상대방에게 베개를 던져 다음 차례를 1번 쉬게 만듭니다!',
+        colorClass: 'border-sky-400 text-sky-300'
+      },
+      {
+        id: 'self_skip_2',
+        emoji: '💤2️⃣',
+        title: '나 2 뛰어넘기 카드!',
+        desc: '푹신한 베개에 잠들어 버렸어요! 내 차례가 와도 2번 동안 쉽니다!',
+        colorClass: 'border-purple-400 text-purple-300'
+      }
+    ];
+
+    let state = {
+      vsAi: true,
+      phase: 'RPS', // 'RPS' | 'DICE' | 'MOVING' | 'CARD' | 'LEVER' | 'GAMEOVER'
+      activePlayer: 1, // 1 = Frog (개구리), 2 = Rabbit (토끼)
+      p1Pos: 1,
+      p2Pos: 1,
+      p1Skip: 0,
+      p2Skip: 0,
+      pillowRocks: [4, 8, 13, 17, 21], // 5 pillow positions out of 23
+      rpsP1Choice: null,
+      drawnCard: null,
+      pendingFallTarget: null, // 'frog' | 'rabbit'
+      fallingPiece: null
+    };
+
+    // Build the 5-tier stacked mountain layout (23 boulders total)
+    // Tier 5 (Top summit): [23]
+    // Tier 4 (L -> R): [18, 19, 20, 21, 22]
+    // Tier 3 (R -> L): [17, 16, 15, 14, 13]
+    // Tier 2 (L -> R): [7, 8, 9, 10, 11, 12]
+    // Tier 1 (Bottom R -> L, so #1 '시작' is bottom-right like the drawing!): [6, 5, 4, 3, 2, 1]
+    const MOUNTAIN_TIERS = [
+      [23],
+      [18, 19, 20, 21, 22],
+      [17, 16, 15, 14, 13],
+      [7, 8, 9, 10, 11, 12],
+      [6, 5, 4, 3, 2, 1]
+    ];
+
+    function renderMountain() {
+      const container = document.getElementById('rockMountainContainer');
+      container.innerHTML = '';
+
+      MOUNTAIN_TIERS.forEach((tier, tierIdx) => {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'flex items-end justify-center gap-1.5 sm:gap-2.5 flex-wrap';
+
+        tier.forEach(rockNum => {
+          const isStart = rockNum === 1;
+          const isEnd = rockNum === TOTAL_ROCKS;
+          const hasPillow = state.pillowRocks.includes(rockNum);
+          const hasFrog = state.p1Pos === rockNum;
+          const hasRabbit = state.p2Pos === rockNum;
+
+          const rockEl = document.createElement('div');
+          let sizeClass = isEnd
+            ? 'w-24 h-20 sm:w-28 sm:h-24 border-4 border-amber-400 bg-gradient-to-b from-amber-600/40 via-stone-700 to-stone-800 shadow-lg'
+            : isStart
+            ? 'w-14 h-14 sm:w-16 sm:h-16 border-2 border-emerald-400 bg-gradient-to-b from-stone-600 to-stone-800'
+            : hasPillow
+            ? 'w-14 h-14 sm:w-16 sm:h-16 border-2 border-sky-400/90 bg-gradient-to-b from-stone-600 via-stone-700 to-stone-800'
+            : 'w-13 h-13 sm:w-15 sm:h-15 border-2 border-stone-500/80 bg-gradient-to-b from-stone-700 to-stone-800';
+
+          rockEl.className = `rock-boulder relative flex flex-col items-center justify-between p-1.5 select-none ${sizeClass}`;
+          rockEl.style.minWidth = isEnd ? '6.2rem' : '3.35rem';
+          rockEl.style.minHeight = isEnd ? '5.2rem' : '3.35rem';
+
+          // Top label or Pillow drawing on top of boulder
+          const topBadge = document.createElement('div');
+          if (isEnd) {
+            topBadge.className = 'px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black text-[11px] shadow';
+            topBadge.textContent = '👑 끝 (23)';
+          } else if (isStart) {
+            topBadge.className = 'px-1.5 py-0.5 rounded-full bg-emerald-400 text-slate-950 font-black text-[10px]';
+            topBadge.textContent = '↖ 시작(1)';
+          } else if (hasPillow) {
+            // Rectangular pillow drawn on the rock just like the child's sketch!
+            topBadge.className = 'pillow-badge px-1.5 py-0.5 bg-sky-100 text-slate-900 border border-sky-400 text-[10px] font-black flex items-center gap-0.5';
+            topBadge.innerHTML = '<span>🛏️</span><span>배개</span>';
+          } else {
+            topBadge.className = 'text-[10px] font-bold text-stone-400';
+            topBadge.textContent = rockNum;
+          }
+          rockEl.appendChild(topBadge);
+
+          // Pieces (Frog / Rabbit) sitting on this rock
+          const piecesRow = document.createElement('div');
+          piecesRow.className = 'flex items-center justify-center gap-0.5 min-h-[24px]';
+
+          if (hasFrog) {
+            const frogSpan = document.createElement('span');
+            frogSpan.className = `text-xl sm:text-2xl drop-shadow ${
+              state.fallingPiece === 'frog' ? 'animate-fall' : 'animate-hop'
+            }`;
+            frogSpan.textContent = '🐸';
+            piecesRow.appendChild(frogSpan);
+          }
+          if (hasRabbit) {
+            const rabbitSpan = document.createElement('span');
+            rabbitSpan.className = `text-xl sm:text-2xl drop-shadow ${
+              state.fallingPiece === 'rabbit' ? 'animate-fall' : 'animate-hop'
+            }`;
+            rabbitSpan.textContent = '🐰';
+            piecesRow.appendChild(rabbitSpan);
+          }
+
+          rockEl.appendChild(piecesRow);
+
+          // Small rock number at bottom if it has a pillow
+          if (hasPillow) {
+            const numFoot = document.createElement('div');
+            numFoot.className = 'text-[9px] text-sky-300 font-bold leading-none';
+            numFoot.textContent = `${rockNum}번`;
+            rockEl.appendChild(numFoot);
+          }
+
+          rowEl.appendChild(rockEl);
+        });
+
+        container.appendChild(rowEl);
+      });
+    }
+
+    function updateStatus(title, sub) {
+      document.getElementById('statusTitle').textContent = title;
+      document.getElementById('statusSub').textContent = sub;
+    }
+
+    function renderUI() {
+      renderMountain();
+
+      // Step indicator highlight
+      const activeStep =
+        state.phase === 'RPS' ? 1 :
+        (state.phase === 'DICE' || state.phase === 'MOVING') ? 2 :
+        state.phase === 'CARD' ? 3 :
+        state.phase === 'LEVER' ? 4 : 0;
+
+      for (let i = 1; i <= 4; i++) {
+        const el = document.getElementById('stepIndicator' + i);
+        if (i === activeStep) {
+          el.className = 'p-2 rounded-xl border-2 border-amber-400 bg-amber-500/15 text-amber-300 scale-[1.02] transition-all';
+        } else {
+          el.className = 'p-2 rounded-xl border border-[var(--border)] opacity-60 transition-all';
+        }
+      }
+
+      // Player 1 & Player 2 info
+      document.getElementById('p1PosText').textContent =
+        state.p1Pos === 1 ? '1번 바위 (시작)' :
+        state.p1Pos === TOTAL_ROCKS ? '23번 바위 (끝!)' : `${state.p1Pos}번 바위`;
+      document.getElementById('p1RemainText').textContent = `${TOTAL_ROCKS - state.p1Pos}칸`;
+
+      document.getElementById('p2NameLabel').textContent = state.vsAi ? '토끼 로봇 (2P)' : '토끼 (2P)';
+      document.getElementById('p2PosText').textContent =
+        state.p2Pos === 1 ? '1번 바위 (시작)' :
+        state.p2Pos === TOTAL_ROCKS ? '23번 바위 (끝!)' : `${state.p2Pos}번 바위`;
+      document.getElementById('p2RemainText').textContent = `${TOTAL_ROCKS - state.p2Pos}칸`;
+
+      // Turn badges & skip badges
+      const isTurnPhase = ['DICE', 'MOVING', 'CARD', 'LEVER'].includes(state.phase);
+      document.getElementById('p1TurnBadge').classList.toggle('hidden', !(isTurnPhase && state.activePlayer === 1));
+      document.getElementById('p2TurnBadge').classList.toggle('hidden', !(isTurnPhase && state.activePlayer === 2));
+
+      const p1SkipBadge = document.getElementById('p1SkipBadge');
+      if (state.p1Skip > 0) {
+        p1SkipBadge.classList.remove('hidden');
+        p1SkipBadge.textContent = `💤 ${state.p1Skip}번 쉬기`;
+      } else {
+        p1SkipBadge.classList.add('hidden');
+      }
+
+      const p2SkipBadge = document.getElementById('p2SkipBadge');
+      if (state.p2Skip > 0) {
+        p2SkipBadge.classList.remove('hidden');
+        p2SkipBadge.textContent = `💤 ${state.p2Skip}번 쉬기`;
+      } else {
+        p2SkipBadge.classList.add('hidden');
+      }
+
+      // Lever buttons active state
+      const btnRabbitLever = document.getElementById('btnRabbitLever');
+      const btnFrogLever = document.getElementById('btnFrogLever');
+      const rabbitActive = state.phase === 'LEVER' && state.pendingFallTarget === 'rabbit';
+      const frogActive = state.phase === 'LEVER' && state.pendingFallTarget === 'frog';
+
+      btnRabbitLever.disabled = !rabbitActive;
+      btnRabbitLever.classList.toggle('animate-glow', rabbitActive);
+      btnFrogLever.disabled = !frogActive;
+      btnFrogLever.classList.toggle('animate-glow', frogActive);
+
+      // Phase Panels visibility
+      document.getElementById('phaseRps').classList.toggle('hidden', state.phase !== 'RPS');
+      document.getElementById('phaseDice').classList.toggle('hidden', !(state.phase === 'DICE' || state.phase === 'MOVING'));
+      document.getElementById('phaseCard').classList.toggle('hidden', state.phase !== 'CARD');
+      document.getElementById('phaseLever').classList.toggle('hidden', state.phase !== 'LEVER');
+      document.getElementById('phaseGameOver').classList.toggle('hidden', state.phase !== 'GAMEOVER');
+
+      if (state.phase === 'DICE') {
+        const whoName = state.activePlayer === 1 ? '🐸 개구리(1P)' : (state.vsAi ? '🐰 토끼 로봇(2P)' : '🐰 토끼(2P)');
+        document.getElementById('diceTurnTitle').textContent = `${whoName}의 주사위 차례!`;
+        const isAiTurn = state.vsAi && state.activePlayer === 2;
+        document.getElementById('btnRollDice').disabled = isAiTurn;
+        document.getElementById('btnRollDice').textContent = isAiTurn ? '🤖 토끼 로봇이 주사위를 굴리는 중...' : '🎲 주사위 굴리기!';
+      }
+    }
+
+    function shufflePillows() {
+      // Pick 5 random rocks between 2 and 22
+      const candidates = [];
+      for (let i = 2; i <= 22; i++) candidates.push(i);
+      candidates.sort(() => Math.random() - 0.5);
+      state.pillowRocks = candidates.slice(0, 5).sort((a, b) => a - b);
+      playSound('card');
+      renderUI();
+      updateStatus(
+        `배개 그림 바위 5군데 위치가 바뀌었어요! (${state.pillowRocks.join(', ')}번 바위)`,
+        '배개 그림이 있는 바위에 도착하면 카드를 뽑습니다!'
+      );
+    }
+
+    function toggleVsMode() {
+      state.vsAi = !state.vsAi;
+      const btn = document.getElementById('btnVsMode');
+      btn.textContent = state.vsAi ? '🤖 1P(개구리) vs 로봇(토끼)' : '👫 1P(개구리) vs 2P(토끼)';
+      resetGame();
+    }
+
+    function resetGame() {
+      state.phase = 'RPS';
+      state.activePlayer = 1;
+      state.p1Pos = 1;
+      state.p2Pos = 1;
+      state.p1Skip = 0;
+      state.p2Skip = 0;
+      state.rpsP1Choice = null;
+      state.drawnCard = null;
+      state.pendingFallTarget = null;
+      state.fallingPiece = null;
+
+      document.getElementById('rpsResultBox').classList.add('hidden');
+      document.getElementById('rpsPromptText').textContent = '개구리(1P)가 낼 가위바위보를 선택해 주세요!';
+      document.getElementById('diceBox').textContent = '🎲';
+
+      playSound('hop');
+      updateStatus(
+        '가위바위보로 누가 먼저 출발할지 정해요!',
+        '가위바위보 이긴 사람이 먼저 주사위를 굴려 바위산을 올라갑니다!'
+      );
+      renderUI();
+    }
+
+    // STEP 1: Rock Paper Scissors
+    function playRps(choice) {
+      if (state.phase !== 'RPS') return;
+      playSound('hop');
+
+      const keys = ['scissors', 'rock', 'paper'];
+      let p1Pick, p2Pick;
+
+      if (state.vsAi) {
+        p1Pick = choice;
+        p2Pick = keys[Math.floor(Math.random() * 3)];
+      } else {
+        if (!state.rpsP1Choice) {
+          state.rpsP1Choice = choice;
+          document.getElementById('rpsPromptText').textContent = '이제 토끼(2P)가 낼 가위바위보를 선택해 주세요!';
+          return;
+        }
+        p1Pick = state.rpsP1Choice;
+        p2Pick = choice;
+        state.rpsP1Choice = null;
+      }
+
+      const r1 = RPS_MAP[p1Pick];
+      const r2 = RPS_MAP[p2Pick];
+      const resBox = document.getElementById('rpsResultBox');
+      resBox.classList.remove('hidden');
+
+      if (p1Pick === p2Pick) {
+        resBox.textContent = `🐸 개구리 ${r1.emoji} vs 🐰 토끼 ${r2.emoji} — 비겼어요! 다시 골라주세요!`;
+        document.getElementById('rpsPromptText').textContent = '비겼습니다! 다시 가위바위보를 선택해 주세요!';
+        return;
+      }
+
+      const p1Wins = r1.beats === p2Pick;
+      state.activePlayer = p1Wins ? 1 : 2;
+      const winnerName = p1Wins ? '🐸 개구리(1P)' : (state.vsAi ? '🐰 토끼 로봇(2P)' : '🐰 토끼(2P)');
+
+      resBox.textContent = `🐸 ${r1.emoji} vs 🐰 ${r2.emoji} ➔ ${winnerName} 승리! 먼저 시작합니다!`;
+      playSound('card');
+
+      setTimeout(() => {
+        startPlayerTurn(state.activePlayer);
+      }, 950);
+    }
+
+    // Start a player's turn (checks if they have a skip penalty!)
+    function startPlayerTurn(player) {
+      state.activePlayer = player;
+      const isP1 = player === 1;
+      const playerName = isP1 ? '🐸 개구리(1P)' : (state.vsAi ? '🐰 토끼 로봇(2P)' : '🐰 토끼(2P)');
+
+      // Check skip count ("내 차례가 와도 못하는 거!")
+      if (isP1 && state.p1Skip > 0) {
+        state.p1Skip--;
+        playSound('fall');
+        updateStatus(
+          `💤 ${playerName} 차례지만 '뛰어넘기 카드' 때문에 이번 차례는 쉽니다!`,
+          `내 차례가 와도 못하는 거! (남은 쉬기: ${state.p1Skip}번) ➔ 상대 차례로 넘어갑니다.`
+        );
+        renderUI();
+        setTimeout(() => {
+          startPlayerTurn(2);
+        }, 1600);
+        return;
+      }
+
+      if (!isP1 && state.p2Skip > 0) {
+        state.p2Skip--;
+        playSound('fall');
+        updateStatus(
+          `💤 ${playerName} 차례지만 '뛰어넘기 카드' 때문에 이번 차례는 쉽니다!`,
+          `차례가 와도 못하는 거! (남은 쉬기: ${state.p2Skip}번) ➔ 개구리(1P) 차례로 넘어갑니다.`
+        );
+        renderUI();
+        setTimeout(() => {
+          startPlayerTurn(1);
+        }, 1600);
+        return;
+      }
+
+      state.phase = 'DICE';
+      updateStatus(
+        `${playerName} 차례입니다! 주사위를 굴려 바위를 올라가세요!`,
+        '배개 그림이 있는 바위에 멈추면 카드를 뽑게 됩니다!'
+      );
+      renderUI();
+
+      if (state.vsAi && player === 2) {
+        setTimeout(() => {
+          rollDice();
+        }, 950);
+      }
+    }
+
+    // STEP 2: Roll Dice & Hop Step-by-Step
+    function rollDice() {
+      if (state.phase !== 'DICE') return;
+      state.phase = 'MOVING';
+      playSound('dice');
+
+      const diceBox = document.getElementById('diceBox');
+      diceBox.classList.add('animate-dice');
+      document.getElementById('btnRollDice').disabled = true;
+
+      setTimeout(() => {
+        diceBox.classList.remove('animate-dice');
+        const roll = Math.floor(Math.random() * 6) + 1;
+        diceBox.textContent = DICE_FACES[roll - 1];
+
+        const whoName = state.activePlayer === 1 ? '🐸 개구리(1P)' : (state.vsAi ? '🐰 토끼 로봇(2P)' : '🐰 토끼(2P)');
+        updateStatus(
+          `${whoName}가 주사위 [${roll}]이(가) 나왔어요!`,
+          `${roll}칸 위로 폴짝폴짝 올라갑니다!`
+        );
+
+        movePieceStepByStep(state.activePlayer, roll);
+      }, 500);
+    }
+
+    function movePieceStepByStep(player, stepsRemaining) {
+      if (stepsRemaining <= 0) {
+        onPieceLanded(player);
+        return;
+      }
+
+      if (player === 1) {
+        state.p1Pos = Math.min(TOTAL_ROCKS, state.p1Pos + 1);
+      } else {
+        state.p2Pos = Math.min(TOTAL_ROCKS, state.p2Pos + 1);
+      }
+      playSound('hop');
+      renderUI();
+
+      const currentPos = player === 1 ? state.p1Pos : state.p2Pos;
+      if (currentPos >= TOTAL_ROCKS) {
+        // Reached the top boulder (#23 끝)!
+        setTimeout(() => onPieceLanded(player), 320);
+        return;
+      }
+
+      setTimeout(() => {
+        movePieceStepByStep(player, stepsRemaining - 1);
+      }, 280);
+    }
+
+    function onPieceLanded(player) {
+      const pos = player === 1 ? state.p1Pos : state.p2Pos;
+      const whoName = player === 1 ? '🐸 개구리(1P)' : (state.vsAi ? '🐰 토끼 로봇(2P)' : '🐰 토끼(2P)');
+
+      // Check win condition: Rock #23 (맨 위에 바위 도착!)
+      if (pos >= TOTAL_ROCKS) {
+        state.phase = 'GAMEOVER';
+        playSound('win');
+        document.getElementById('winnerEmoji').textContent = player === 1 ? '🐸👑' : '🐰👑';
+        document.getElementById('winnerTitle').textContent = `${whoName} 맨 위 바위(끝) 도착 승리!! 🎉`;
+        document.getElementById('winnerSub').textContent = '23번 꼭대기 바위에 먼저 도착해서 배개 싸움에서 승리했어요!';
+        updateStatus(
+          `🎉 ${whoName} 승리!! 23번 맨 위 바위(끝)에 먼저 도착했어요!`,
+          '새 게임 버튼을 눌러 다시 대결해 보세요!'
+        );
+        renderUI();
+        return;
+      }
+
+      // Check if landed on a Pillow Rock (배개 그림이 보일 때!)
+      if (state.pillowRocks.includes(pos)) {
+        state.phase = 'CARD';
+        state.drawnCard = null;
+        document.getElementById('cardDeckRow').classList.remove('hidden');
+        document.getElementById('revealedCardBox').classList.add('hidden');
+        playSound('card');
+
+        updateStatus(
+          `🛏️ ${pos}번 바위에 [배개 그림]이 보여요! 카드를 뽑을 시간!`,
+          `${whoName}가 배개 카드 3장 중 1장을 뽑습니다!`
+        );
+        renderUI();
+
+        if (state.vsAi && player === 2) {
+          setTimeout(() => {
+            drawPillowCard(Math.floor(Math.random() * 3));
+          }, 1000);
+        }
+        return;
+      }
+
+      // Normal rock -> Next player's turn
+      const nextPlayer = player === 1 ? 2 : 1;
+      setTimeout(() => {
+        startPlayerTurn(nextPlayer);
+      }, 650);
+    }
+
+    // STEP 3: Draw a Pillow Card when on a Pillow Rock
+    function drawPillowCard() {
+      if (state.phase !== 'CARD' || state.drawnCard) return;
+
+      const randomCard = PILLOW_CARDS[Math.floor(Math.random() * PILLOW_CARDS.length)];
+      state.drawnCard = randomCard;
+      playSound('card');
+
+      document.getElementById('cardDeckRow').classList.add('hidden');
+      const box = document.getElementById('revealedCardBox');
+      box.classList.remove('hidden');
+
+      document.getElementById('revealedCardEmoji').textContent = randomCard.emoji;
+      document.getElementById('revealedCardTitle').textContent = randomCard.title;
+      document.getElementById('revealedCardDesc').textContent = randomCard.desc;
+
+      const whoName = state.activePlayer === 1 ? '🐸 개구리(1P)' : (state.vsAi ? '🐰 토끼 로봇(2P)' : '🐰 토끼(2P)');
+      updateStatus(
+        `🃏 ${whoName}가 뽑은 카드: [${randomCard.title}]`,
+        randomCard.desc
+      );
+
+      if (state.vsAi && state.activePlayer === 2) {
+        document.getElementById('btnConfirmCard').textContent = '🤖 로봇이 카드 효과를 발동합니다...';
+        setTimeout(() => {
+          applyRevealedCard();
+        }, 1400);
+      } else {
+        document.getElementById('btnConfirmCard').textContent = '⚡ 카드 효과 발동하기!';
+      }
+    }
+
+    function applyRevealedCard() {
+      if (state.phase !== 'CARD' || !state.drawnCard) return;
+      const card = state.drawnCard;
+      const isP1 = state.activePlayer === 1;
+      const nextPlayer = isP1 ? 2 : 1;
+
+      if (card.id === 'opp_fall') {
+        // Opponent falls! Need to turn opponent's lever!
+        state.pendingFallTarget = isP1 ? 'rabbit' : 'frog';
+        enterLeverPhase();
+        return;
+      }
+
+      if (card.id === 'self_fall') {
+        // Self falls! Need to turn own lever!
+        state.pendingFallTarget = isP1 ? 'frog' : 'rabbit';
+        enterLeverPhase();
+        return;
+      }
+
+      if (card.id === 'self_skip_1') {
+        if (isP1) state.p1Skip += 1;
+        else state.p2Skip += 1;
+        playSound('hop');
+        startPlayerTurn(nextPlayer);
+        return;
+      }
+
+      if (card.id === 'opp_skip_1') {
+        if (isP1) state.p2Skip += 1;
+        else state.p1Skip += 1;
+        playSound('hop');
+        startPlayerTurn(nextPlayer);
+        return;
+      }
+
+      if (card.id === 'self_skip_2') {
+        if (isP1) state.p1Skip += 2;
+        else state.p2Skip += 2;
+        playSound('hop');
+        startPlayerTurn(nextPlayer);
+        return;
+      }
+    }
+
+    // STEP 4: Turn the Lever ("개구리/토끼 떨어질 때 돌리는 거")
+    function enterLeverPhase() {
+      state.phase = 'LEVER';
+      const targetKor = state.pendingFallTarget === 'frog' ? '🐸 개구리' : '🐰 토끼';
+      const sideKor = state.pendingFallTarget === 'frog' ? '오른쪽' : '왼쪽';
+
+      document.getElementById('leverPromptTitle').textContent =
+        `⚙️ 바위산 ${sideKor}의 [${targetKor} 떨어질 때 돌리는 거] 레버를 돌리세요!`;
+      document.getElementById('leverPromptSub').textContent =
+        `레버를 돌리면 ${targetKor}가 1번 바위("시작" 위치)로 쿵 떨어집니다!`;
+
+      updateStatus(
+        `⚙️ [${targetKor} 떨어질 때 돌리는 거] 작동 시간!`,
+        `바위산 ${sideKor}에 반짝이는 레버를 클릭해서 돌려주세요!`
+      );
+      renderUI();
+
+      // If AI's turn, AI automatically turns the lever after a short pause
+      if (state.vsAi && state.activePlayer === 2) {
+        setTimeout(() => {
+          pullFallLever(state.pendingFallTarget);
+        }, 1200);
+      }
+    }
+
+    function triggerActiveLever() {
+      if (state.phase === 'LEVER' && state.pendingFallTarget) {
+        pullFallLever(state.pendingFallTarget);
+      }
+    }
+
+    function pullFallLever(target) {
+      if (state.phase !== 'LEVER' || state.pendingFallTarget !== target) return;
+
+      const knobBtn = target === 'frog'
+        ? document.getElementById('btnFrogLever')
+        : document.getElementById('btnRabbitLever');
+
+      knobBtn.classList.add('animate-knob');
+      state.fallingPiece = target;
+      playSound('fall');
+      renderUI();
+
+      const targetKor = target === 'frog' ? '🐸 개구리(1P)' : '🐰 토끼(2P)';
+      updateStatus(
+        `드르륵~ 쿵!! ⚙️ ${targetKor}가 "시작" 바위(1번)로 떨어졌어요!!`,
+        '처음 시작 위치부터 다시 바위산을 올라가야 합니다!'
+      );
+
+      setTimeout(() => {
+        knobBtn.classList.remove('animate-knob');
+        if (target === 'frog') {
+          state.p1Pos = 1;
+        } else {
+          state.p2Pos = 1;
+        }
+        state.fallingPiece = null;
+        state.pendingFallTarget = null;
+        renderUI();
+
+        const nextPlayer = state.activePlayer === 1 ? 2 : 1;
+        setTimeout(() => {
+          startPlayerTurn(nextPlayer);
+        }, 900);
+      }, 700);
+    }
+
+    // Initialize game on load
+    renderUI();
+  </script>
+</body>
+</html>

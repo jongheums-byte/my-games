@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>1호 게임: 바바 먹이 냠냠 - 바바의 먹이를 훔친다!</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --background: #0f172a;
+      --foreground: #f8fafc;
+      --card: #1e293b;
+      --border: #334155;
+      --muted-foreground: #94a3b8;
+      --secondary: #334155;
+      --secondary-foreground: #f1f5f9;
+    }
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-4px); }
+    }
+    @keyframes shakeSnap {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      20% { transform: translate(-6px, 3px) rotate(-2deg); }
+      40% { transform: translate(6px, -3px) rotate(2deg); }
+      60% { transform: translate(-4px, -2px) rotate(-1deg); }
+      80% { transform: translate(4px, 2px) rotate(1deg); }
+    }
+    @keyframes diceRoll {
+      0% { transform: rotate(0deg) scale(1); }
+      25% { transform: rotate(90deg) scale(1.15); }
+      50% { transform: rotate(180deg) scale(0.95); }
+      75% { transform: rotate(270deg) scale(1.1); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.4); opacity: 0; }
+      80% { transform: scale(1.1); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .animate-float { animation: floatSlow 2.6s ease-in-out infinite; }
+    .animate-snap { animation: shakeSnap 0.4s ease-in-out; }
+    .animate-dice { animation: diceRoll 0.45s ease-in-out infinite; }
+    .animate-pop { animation: popIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+    .neon-mode {
+      background-color: #0d1211 !important;
+      color: #a7f3d0 !important;
+    }
+    .neon-card {
+      background-color: #141c1a !important;
+      border-color: #34d399 !important;
+      box-shadow: 0 0 15px rgba(52, 211, 153, 0.2) !important;
+    }
+
+    .food-item {
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s;
+    }
+    .food-item:hover:not(:disabled) {
+      transform: scale(1.22) rotate(-6deg);
+    }
+    .food-item:active:not(:disabled) {
+      transform: scale(0.9);
+    }
+  </style>
+</head>
+<body id="appBody" class="bg-[var(--background)] text-[var(--foreground)] antialiased min-h-screen p-3 md:p-5 select-none transition-colors duration-300">
+  <div class="max-w-4xl mx-auto space-y-4">
+    
+    <!-- Top Navigation Bar back to Game Hub -->
+    <div class="flex items-center justify-between">
+      <a href="../../index.html" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-500/30 transition">
+        <span>🏠 게임 연구소 목록으로</span>
+      </a>
+      <button onclick="toggleSketchModal(true)" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 transition">
+        <span>🎨 내 원작 설계도 그림 보기</span>
+      </button>
+    </div>
+
+    <!-- Header Banner -->
+    <header id="headerCard" class="bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl bg-emerald-500/15 border-2 border-emerald-500/40 flex items-center justify-center text-2xl shrink-0">
+          🐱
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/30">
+              1호 작품 · 바바의 먹이를 훔친다!
+            </span>
+            <span class="text-xs text-[var(--muted-foreground)] font-medium">이빨이 탁! 내 손 빼~ ㅠㅠ 앗!</span>
+          </div>
+          <h1 class="text-xl md:text-2xl font-extrabold tracking-tight flex items-center gap-1.5 mt-0.5">
+            <span>바바 먹이 냠냠</span>
+            <span class="text-rose-500 text-lg">♥</span>
+          </h1>
+        </div>
+      </div>
+
+      <!-- Mode & Options Controls -->
+      <div class="flex flex-wrap items-center gap-2 justify-end">
+        <button id="btnVsMode" onclick="toggleVsMode()" class="px-3 py-1.5 rounded-xl text-xs font-bold border border-[var(--border)] bg-[var(--secondary)] text-[var(--secondary-foreground)] hover:opacity-90 transition">
+          🤖 1P vs 로봇(AI)
+        </button>
+        <button id="btnTrapMode" onclick="toggleTrapMode()" class="px-3 py-1.5 rounded-xl text-xs font-bold border border-emerald-500/40 bg-emerald-500/10 text-emerald-500 hover:opacity-90 transition">
+          🦷 기본 규칙 모드
+        </button>
+        <button id="btnThemeMode" onclick="toggleNeonMode()" class="px-3 py-1.5 rounded-xl text-xs font-bold border border-[var(--border)] bg-[var(--secondary)] text-[var(--secondary-foreground)] hover:opacity-90 transition">
+          🖍️ 네온 칠판 테마
+        </button>
+        <button onclick="resetGame()" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500 text-white hover:bg-rose-600 transition">
+          🔄 새 게임
+        </button>
+      </div>
+    </header>
+
+    <!-- Step Progress Bar -->
+    <div id="stepBar" class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-3 shadow-sm">
+      <div class="grid grid-cols-4 gap-2 text-center text-xs font-bold">
+        <div id="stepIndicator1" class="p-2 rounded-xl border transition-all">
+          <div class="text-base mb-0.5">🥣 1단계</div>
+          <div>바바 입에 먹이 넣기</div>
+        </div>
+        <div id="stepIndicator2" class="p-2 rounded-xl border transition-all">
+          <div class="text-base mb-0.5">✌️ 2단계</div>
+          <div>가위바위보 & 주사위</div>
+        </div>
+        <div id="stepIndicator3" class="p-2 rounded-xl border transition-all">
+          <div class="text-base mb-0.5">🐾 3단계</div>
+          <div>숫자만큼 먹이 빼기</div>
+        </div>
+        <div id="stepIndicator4" class="p-2 rounded-xl border transition-all">
+          <div class="text-base mb-0.5">🦷 4단계</div>
+          <div>바바 입 닫고 턴 넘기기</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Game Board -->
+    <div id="boardCard" class="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-4 md:p-6 shadow-md relative overflow-hidden">
+      
+      <div id="statusBanner" class="mb-5 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-center">
+        <p id="statusTitle" class="text-base md:text-lg font-extrabold text-[var(--foreground)]">
+          바닥에 바바 모형과 밥그릇 두 개를 놓았어요!
+        </p>
+        <p id="statusSub" class="text-xs md:text-sm text-[var(--muted-foreground)] mt-0.5">
+          먼저 바바의 입 안에 맛있는 먹이 모형들을 넣어주세요!
+        </p>
+      </div>
+
+      <!-- 3-Column Floor Layout -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+        
+        <!-- LEFT: Player 1 Food Bowl -->
+        <div id="bowl1Card" class="lg:col-span-3 bg-[var(--background)] border-2 border-sky-500/40 rounded-2xl p-4 flex flex-col items-center justify-between min-h-[220px] transition-all">
+          <div class="w-full flex items-center justify-between border-b border-[var(--border)] pb-2">
+            <span class="text-sm font-extrabold text-sky-500 flex items-center gap-1">
+              <span>🙋‍♂️</span> <span id="p1Name">플레이어 1</span>
+            </span>
+            <span id="p1TurnBadge" class="hidden px-2 py-0.5 text-xs font-bold rounded-full bg-sky-500 text-white animate-pulse">
+              내 차례!
+            </span>
+          </div>
+
+          <div class="my-3 relative w-full flex flex-col items-center">
+            <div id="p1BowlItems" class="min-h-[68px] w-full px-2 py-1.5 rounded-t-2xl bg-sky-500/5 border border-b-0 border-sky-500/20 flex flex-wrap items-center justify-center gap-1"></div>
+            <div class="w-full h-10 bg-gradient-to-b from-sky-500 to-sky-600 rounded-b-3xl border-2 border-sky-400 shadow-inner flex items-center justify-center text-white font-extrabold text-xs tracking-wider">
+              🥣 1P 밥그릇 모형
+            </div>
+          </div>
+
+          <div class="w-full text-center pt-1">
+            <span class="text-xs text-[var(--muted-foreground)]">가져간 먹이:</span>
+            <span id="p1Score" class="text-xl font-black text-sky-500 ml-1">0</span>
+            <span class="text-xs text-[var(--muted-foreground)]">개</span>
+          </div>
+        </div>
+
+        <!-- CENTER: BABA Model -->
+        <div class="lg:col-span-6 flex flex-col items-center justify-center relative">
+          
+          <div class="mb-2 flex items-center gap-2">
+            <span class="px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              👄 바바 입속 남은 먹이: <strong id="remainingFoodCount" class="text-sm">0</strong>개
+            </span>
+            <span id="toPullBadge" class="hidden px-3 py-1 rounded-full text-xs font-extrabold bg-rose-500 text-white animate-bounce">
+              꺼낼 먹이: <strong id="toPullCount">0</strong>개 남음!
+            </span>
+          </div>
+
+          <div id="babaModelContainer" class="relative w-full max-w-[390px] rounded-3xl p-4 border-2 border-emerald-500/40 bg-gradient-to-b from-emerald-950/40 to-teal-950/60 shadow-inner flex flex-col items-center">
+            
+            <!-- Striped Cat Paw -->
+            <div id="stripedPaw" class="pointer-events-none transition-all duration-300 transform -translate-y-2 opacity-85 flex items-center gap-2 mb-1">
+              <svg width="120" height="42" viewBox="0 0 120 42" class="overflow-visible">
+                <g id="pawGroup">
+                  <path d="M 10,8 Q 55,6 88,16 L 88,32 Q 55,26 10,28 Z" fill="#f59e0b" stroke="#fde68a" stroke-width="2" />
+                  <line x1="25" y1="8" x2="25" y2="28" stroke="#78350f" stroke-width="4" />
+                  <line x1="42" y1="8" x2="42" y2="28" stroke="#78350f" stroke-width="4" />
+                  <line x1="59" y1="10" x2="59" y2="29" stroke="#78350f" stroke-width="4" />
+                  <line x1="75" y1="13" x2="75" y2="30" stroke="#78350f" stroke-width="4" />
+                  <circle cx="94" cy="24" r="13" fill="#fbbf24" stroke="#fde68a" stroke-width="2.5" />
+                  <circle cx="101" cy="18" r="3.5" fill="#78350f" />
+                  <circle cx="104" cy="24" r="3.5" fill="#78350f" />
+                  <circle cx="101" cy="30" r="3.5" fill="#78350f" />
+                  <ellipse cx="92" cy="24" rx="4.5" ry="5.5" fill="#f43f5e" />
+                </g>
+              </svg>
+              <span id="pawSpeech" class="text-xs font-extrabold text-amber-300 bg-black/50 px-2.5 py-1 rounded-full border border-amber-400/40">
+                살금살금... 🐾
+              </span>
+            </div>
+
+            <!-- BABA Head & Giant Mouth -->
+            <div id="babaHead" class="relative w-full rounded-3xl bg-slate-900 border-4 border-emerald-400 p-3 shadow-lg transition-all duration-300">
+              <div class="flex items-center justify-between px-3 pt-1 pb-2">
+                <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-300">
+                  <span>⬅️</span>
+                  <span id="jawArrowText">입 벌리는 중</span>
+                  <span>➡️</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-extrabold text-emerald-300">바바 모형</span>
+                  <div id="babaEye" class="w-10 h-10 rounded-full bg-emerald-950 border-2 border-emerald-300 relative flex items-center justify-center overflow-hidden shadow">
+                    <div id="babaEyelid" class="w-full h-0.5 bg-emerald-300 transform -rotate-12 absolute"></div>
+                    <div id="babaPupil" class="w-3 h-3 rounded-full bg-emerald-300 transform translate-y-1"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Upper Jaw Teeth -->
+              <div id="upperJaw" class="w-full flex justify-around px-2 transition-transform duration-300">
+                <div class="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[18px] border-t-emerald-200"></div>
+                <div class="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[20px] border-t-white"></div>
+                <div class="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[18px] border-t-emerald-200"></div>
+                <div class="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[20px] border-t-white"></div>
+                <div class="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[18px] border-t-emerald-200"></div>
+                <div class="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[20px] border-t-white"></div>
+                <div class="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[18px] border-t-emerald-200"></div>
+              </div>
+
+              <!-- Inside Baba's Mouth -->
+              <div id="babaMouthInterior" class="my-1 min-h-[135px] rounded-2xl bg-rose-950/90 border-2 border-rose-500/40 p-3 flex flex-wrap items-center justify-center gap-2 relative transition-all duration-300 overflow-hidden"></div>
+
+              <!-- Closed Mouth Overlay -->
+              <div id="mouthClosedOverlay" class="hidden my-1 min-h-[76px] rounded-2xl bg-emerald-950 border-2 border-emerald-400 p-3 flex flex-col items-center justify-center text-center">
+                <p id="closedOverlayTitle" class="text-lg font-black text-amber-300">🦷 이빨이 탁!!</p>
+                <p id="closedOverlaySub" class="text-xs text-emerald-200 mt-0.5">바바 입이 닫혔어요! 다음 사람에게 턴이 넘어갑니다!</p>
+              </div>
+
+              <!-- Lower Jaw Teeth -->
+              <div id="lowerJaw" class="w-full flex justify-around px-2 transition-transform duration-300">
+                <div class="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-b-[18px] border-b-emerald-200"></div>
+                <div class="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-b-[20px] border-b-white"></div>
+                <div class="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-b-[18px] border-b-emerald-200"></div>
+                <div class="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-b-[20px] border-b-white"></div>
+                <div class="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-b-[18px] border-b-emerald-200"></div>
+                <div class="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-b-[20px] border-b-white"></div>
+                <div class="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-b-[18px] border-b-emerald-200"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- RIGHT: Player 2 / AI Food Bowl -->
+        <div id="bowl2Card" class="lg:col-span-3 bg-[var(--background)] border-2 border-amber-500/40 rounded-2xl p-4 flex flex-col items-center justify-between min-h-[220px] transition-all">
+          <div class="w-full flex items-center justify-between border-b border-[var(--border)] pb-2">
+            <span class="text-sm font-extrabold text-amber-500 flex items-center gap-1">
+              <span id="p2Icon">🤖</span> <span id="p2Name">바바 로봇(2P)</span>
+            </span>
+            <span id="p2TurnBadge" class="hidden px-2 py-0.5 text-xs font-bold rounded-full bg-amber-500 text-white animate-pulse">
+              차례!
+            </span>
+          </div>
+
+          <div class="my-3 relative w-full flex flex-col items-center">
+            <div id="p2BowlItems" class="min-h-[68px] w-full px-2 py-1.5 rounded-t-2xl bg-amber-500/5 border border-b-0 border-amber-500/20 flex flex-wrap items-center justify-center gap-1"></div>
+            <div class="w-full h-10 bg-gradient-to-b from-amber-500 to-amber-600 rounded-b-3xl border-2 border-amber-400 shadow-inner flex items-center justify-center text-white font-extrabold text-xs tracking-wider">
+              🥣 2P 밥그릇 모형
+            </div>
+          </div>
+
+          <div class="w-full text-center pt-1">
+            <span class="text-xs text-[var(--muted-foreground)]">가져간 먹이:</span>
+            <span id="p2Score" class="text-xl font-black text-amber-500 ml-1">0</span>
+            <span class="text-xs text-[var(--muted-foreground)]">개</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Interactive Control Deck -->
+      <div id="controlDeck" class="mt-5 pt-4 border-t border-[var(--border)] flex flex-col items-center justify-center min-h-[110px]">
+        
+        <div id="phaseSetupControls" class="flex flex-col items-center gap-3">
+          <div class="flex flex-wrap items-center justify-center gap-2">
+            <span class="text-xs font-bold text-[var(--muted-foreground)]">먹이 개수 선택:</span>
+            <button onclick="setInitialFoodCount(12)" id="foodCnt12" class="px-3 py-1 rounded-lg text-xs font-bold border border-[var(--border)]">12개 (빠른 게임)</button>
+            <button onclick="setInitialFoodCount(16)" id="foodCnt16" class="px-3 py-1 rounded-lg text-xs font-bold border-2 border-emerald-500 bg-emerald-500/15 text-emerald-400">16개 (기본)</button>
+            <button onclick="setInitialFoodCount(22)" id="foodCnt22" class="px-3 py-1 rounded-lg text-xs font-bold border border-[var(--border)]">22개 (푸짐하게)</button>
+          </div>
+          <button onclick="fillBabaMouth()" class="px-6 py-3 rounded-2xl font-extrabold text-sm md:text-base bg-emerald-500 text-white shadow-lg hover:bg-emerald-600 active:scale-95 transition flex items-center gap-2">
+            <span>🐟 바바 입에 먹이 가득 넣기 & 게임 시작!</span>
+          </button>
+        </div>
+
+        <div id="phaseRpsControls" class="hidden w-full flex flex-col items-center gap-3">
+          <div id="rpsSubPrompt" class="text-sm font-extrabold text-amber-400">
+            가위바위보를 해서 이긴 사람이 주사위를 굴립니다!
+          </div>
+          
+          <div id="rpsDuelArena" class="hidden items-center justify-center gap-6 my-1">
+            <div class="text-center">
+              <div class="text-xs font-bold text-sky-400 mb-1">플레이어 1</div>
+              <div id="rpsP1Hand" class="w-16 h-16 rounded-2xl bg-sky-500/15 border-2 border-sky-500/40 flex items-center justify-center text-3xl">❔</div>
+            </div>
+            <div class="text-lg font-black text-rose-500">VS</div>
+            <div class="text-center">
+              <div id="rpsP2Label" class="text-xs font-bold text-amber-400 mb-1">바바 로봇(2P)</div>
+              <div id="rpsP2Hand" class="w-16 h-16 rounded-2xl bg-amber-500/15 border-2 border-amber-500/40 flex items-center justify-center text-3xl">❔</div>
+            </div>
+          </div>
+
+          <div id="rpsButtons" class="flex items-center justify-center gap-3">
+            <button onclick="chooseRps('scissors')" class="px-5 py-3 rounded-2xl bg-sky-500/15 border-2 border-sky-500/40 hover:bg-sky-500/25 active:scale-95 transition flex flex-col items-center gap-1">
+              <span class="text-2xl">✌️</span>
+              <span class="text-xs font-extrabold">가위</span>
+            </button>
+            <button onclick="chooseRps('rock')" class="px-5 py-3 rounded-2xl bg-amber-500/15 border-2 border-amber-500/40 hover:bg-amber-500/25 active:scale-95 transition flex flex-col items-center gap-1">
+              <span class="text-2xl">✊</span>
+              <span class="text-xs font-extrabold">바위</span>
+            </button>
+            <button onclick="chooseRps('paper')" class="px-5 py-3 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 hover:bg-emerald-500/25 active:scale-95 transition flex flex-col items-center gap-1">
+              <span class="text-2xl">🖐️</span>
+              <span class="text-xs font-extrabold">보</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="phaseDiceControls" class="hidden flex flex-col items-center gap-3">
+          <div class="flex items-center gap-4">
+            <div id="diceBox" class="w-16 h-16 rounded-2xl bg-white text-slate-900 border-4 border-amber-400 shadow-lg flex items-center justify-center text-3xl font-black">
+              🎲
+            </div>
+            <div class="text-left">
+              <div id="diceWinnerText" class="text-sm font-extrabold text-emerald-400">가위바위보 승리!</div>
+              <div class="text-xs text-[var(--muted-foreground)]">주사위를 굴려 나온 숫자만큼 바바 입에서 먹이를 빼세요!</div>
+            </div>
+          </div>
+          <button id="btnRollDice" onclick="rollDice()" class="px-6 py-2.5 rounded-2xl font-extrabold text-sm bg-amber-500 text-slate-950 shadow-md hover:bg-amber-400 active:scale-95 transition">
+            🎲 주사위 굴리기!
+          </button>
+        </div>
+
+        <div id="phasePullControls" class="hidden flex flex-col items-center gap-2 text-center">
+          <p id="pullInstruction" class="text-sm font-bold text-amber-300">
+            👆 위쪽 바바 입 안에 있는 먹이를 직접 클릭해서 밥그릇으로 꺼내세요!
+          </p>
+          <button id="btnCloseMouth" onclick="closeBabaMouthAndPassTurn()" class="hidden mt-1 px-6 py-3 rounded-2xl font-extrabold text-sm md:text-base bg-rose-500 text-white shadow-lg hover:bg-rose-600 active:scale-95 transition flex items-center gap-2 animate-bounce">
+            <span>🦷 바바 입 닫기 (이빨이 탁! 다음 턴 넘기기)</span>
+          </button>
+        </div>
+
+        <div id="phaseGameOverControls" class="hidden flex flex-col items-center gap-3 text-center">
+          <div id="winnerBanner" class="text-xl md:text-2xl font-black text-amber-400">
+            🏆 승리!
+          </div>
+          <p id="winnerSummary" class="text-xs md:text-sm text-[var(--muted-foreground)]"></p>
+          <button onclick="resetGame()" class="px-6 py-2.5 rounded-2xl font-extrabold text-sm bg-emerald-500 text-white shadow-lg hover:bg-emerald-600 transition">
+            🎉 다시 한 판 더 하기!
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Bottom Rulebook Card -->
+    <div id="ruleCard" class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 text-xs text-[var(--muted-foreground)] space-y-1.5">
+      <div class="font-extrabold text-sm text-[var(--foreground)] flex items-center gap-1.5">
+        <span>📜</span> <span>《바바 먹이 냠냠》 공식 보드게임 규칙</span>
+      </div>
+      <ol class="list-decimal list-inside space-y-1 leading-relaxed">
+        <li>바닥에 <strong>바바 모형</strong>을 내려놓고, 양쪽에 <strong>밥그릇 모형 두 개</strong>를 바닥에 놓습니다.</li>
+        <li><strong>바바 먹이 모형</strong>을 바바의 입 안에 가득 넣습니다.</li>
+        <li>두 사람이 <strong>가위바위보</strong>를 하고, <strong>이긴 사람이 주사위</strong>를 굴립니다.</li>
+        <li>주사위에 나온 숫자만큼 <strong>바바 입에 있는 먹이를 하나씩 빼서</strong> 자기 밥그릇에 넣습니다.</li>
+        <li><strong>바바 입을 닫으면(이빨이 탁!)</strong> 다음 사람에게 턴이 넘어갑니다. 모든 먹이를 다 뺐을 때 <strong>밥그릇에 먹이를 더 많이 가져간 사람이 승리!</strong></li>
+      </ol>
+    </div>
+
+  </div>
+
+  <!-- Original Sketch Modal -->
+  <div id="sketchModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onclick="toggleSketchModal(false)">
+    <div class="bg-slate-900 border-2 border-emerald-400 rounded-3xl p-4 max-w-md w-full space-y-3" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-extrabold text-emerald-300">🎨 《바바 먹이 냠냠》 원작 설계도</h3>
+        <button onclick="toggleSketchModal(false)" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-500 text-white">닫기 ✕</button>
+      </div>
+      <img src="sketch.jpg" alt="바바 먹이 냠냠 원작 스케치" class="w-full rounded-2xl border border-slate-700 max-h-[70vh] object-contain mx-auto" />
+    </div>
+  </div>
+
+  <script>
+    function toggleSketchModal(show) {
+      const m = document.getElementById('sketchModal');
+      m.classList.toggle('hidden', !show);
+    }
+
+    let audioCtx = null;
+    function playSound(type) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const now = audioCtx.currentTime;
+
+        if (type === 'pop') {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(420, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.09);
+          gain.gain.setValueAtTime(0.18, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.1);
+        } else if (type === 'dice') {
+          for (let i = 0; i < 4; i++) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(220 + i * 90, now + i * 0.06);
+            gain.gain.setValueAtTime(0.12, now + i * 0.06);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.05);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + i * 0.06);
+            osc.stop(now + i * 0.06 + 0.05);
+          }
+        } else if (type === 'snap') {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(190, now);
+          osc.frequency.exponentialRampToValueAtTime(48, now + 0.14);
+          gain.gain.setValueAtTime(0.28, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.15);
+        } else if (type === 'win') {
+          const notes = [523.25, 659.25, 783.99, 1046.5];
+          notes.forEach((freq, idx) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.1);
+            gain.gain.setValueAtTime(0.18, now + idx * 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.25);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + idx * 0.1);
+            osc.stop(now + idx * 0.1 + 0.25);
+          });
+        }
+      } catch (e) {}
+    }
+
+    const FOOD_TYPES = [
+      { emoji: '🐟', name: '생선 먹이' },
+      { emoji: '🍖', name: '고기 먹이' },
+      { emoji: '🍤', name: '새우 먹이' },
+      { emoji: '🍪', name: '바바 쿠키' },
+      { emoji: '🧀', name: '치즈 조각' },
+      { emoji: '🍓', name: '상큼 딸기' },
+      { emoji: '❤️', name: '하트 간식' }
+    ];
+
+    let state = {
+      vsAi: true,
+      trapMode: false,
+      neonMode: false,
+      initialFoodCount: 16,
+      phase: 'SETUP',
+      mouthFoods: [],
+      p1Bowl: [],
+      p2Bowl: [],
+      activePlayer: 1,
+      rpsP1Choice: null,
+      diceValue: 0,
+      remainingPulls: 0,
+      pulledThisTurn: []
+    };
+
+    const RPS_MAP = {
+      scissors: { emoji: '✌️', name: '가위', beats: 'paper' },
+      rock:     { emoji: '✊', name: '바위', beats: 'scissors' },
+      paper:    { emoji: '🖐️', name: '보',   beats: 'rock' }
+    };
+
+    const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+
+    function setInitialFoodCount(cnt) {
+      state.initialFoodCount = cnt;
+      [12, 16, 22].forEach(n => {
+        const btn = document.getElementById('foodCnt' + n);
+        if (n === cnt) {
+          btn.className = 'px-3 py-1 rounded-lg text-xs font-bold border-2 border-emerald-500 bg-emerald-500/15 text-emerald-400';
+        } else {
+          btn.className = 'px-3 py-1 rounded-lg text-xs font-bold border border-[var(--border)]';
+        }
+      });
+      playSound('pop');
+    }
+
+    function toggleVsMode() {
+      state.vsAi = !state.vsAi;
+      const btn = document.getElementById('btnVsMode');
+      const p2Icon = document.getElementById('p2Icon');
+      const p2Name = document.getElementById('p2Name');
+      const rpsP2Label = document.getElementById('rpsP2Label');
+
+      if (state.vsAi) {
+        btn.textContent = '🤖 1P vs 로봇(AI)';
+        p2Icon.textContent = '🤖';
+        p2Name.textContent = '바바 로봇(2P)';
+        rpsP2Label.textContent = '바바 로봇(2P)';
+      } else {
+        btn.textContent = '👫 1P vs 2P (친구랑)';
+        p2Icon.textContent = '🙋‍♀️';
+        p2Name.textContent = '플레이어 2';
+        rpsP2Label.textContent = '플레이어 2';
+      }
+      resetGame();
+    }
+
+    function toggleTrapMode() {
+      state.trapMode = !state.trapMode;
+      const btn = document.getElementById('btnTrapMode');
+      if (state.trapMode) {
+        btn.textContent = '⚡ 이빨이 탁! 스릴 함정 ON';
+        btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold border border-rose-500/50 bg-rose-500/15 text-rose-400 hover:opacity-90 transition';
+      } else {
+        btn.textContent = '🦷 기본 규칙 모드';
+        btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold border border-emerald-500/40 bg-emerald-500/10 text-emerald-500 hover:opacity-90 transition';
+      }
+      playSound('pop');
+    }
+
+    function toggleNeonMode() {
+      state.neonMode = !state.neonMode;
+      const body = document.getElementById('appBody');
+      const cards = ['headerCard', 'stepBar', 'boardCard', 'ruleCard'];
+      const btn = document.getElementById('btnThemeMode');
+
+      if (state.neonMode) {
+        body.classList.add('neon-mode');
+        cards.forEach(id => document.getElementById(id).classList.add('neon-card'));
+        btn.textContent = '☀️ 일반 보드게임 테마';
+      } else {
+        body.classList.remove('neon-mode');
+        cards.forEach(id => document.getElementById(id).classList.remove('neon-card'));
+        btn.textContent = '🖍️ 네온 칠판 테마';
+      }
+      playSound('pop');
+    }
+
+    function fillBabaMouth() {
+      state.mouthFoods = [];
+      for (let i = 0; i < state.initialFoodCount; i++) {
+        const pick = FOOD_TYPES[i % FOOD_TYPES.length];
+        state.mouthFoods.push({
+          id: 'food_' + i + '_' + Date.now(),
+          emoji: pick.emoji,
+          name: pick.name
+        });
+      }
+      state.p1Bowl = [];
+      state.p2Bowl = [];
+      state.phase = 'RPS';
+      state.rpsP1Choice = null;
+
+      openBabaJawsVisual();
+      playSound('win');
+      renderAll();
+      updateStatus(
+        '바바 입에 먹이를 가득 넣었어요! 이제 가위바위보를 해주세요!',
+        '가위바위보를 이긴 사람이 주사위를 굴려 바바 입속 먹이를 뺄 수 있습니다.'
+      );
+    }
+
+    function chooseRps(choice) {
+      if (state.phase !== 'RPS') return;
+      playSound('pop');
+
+      if (!state.vsAi && !state.rpsP1Choice) {
+        state.rpsP1Choice = choice;
+        document.getElementById('rpsSubPrompt').textContent = '플레이어 1 선택 완료! 이제 [플레이어 2]가 가위/바위/보를 골라주세요!';
+        return;
+      }
+
+      const p1Choice = state.vsAi ? choice : state.rpsP1Choice;
+      const keys = ['scissors', 'rock', 'paper'];
+      const p2Choice = state.vsAi ? keys[Math.floor(Math.random() * 3)] : choice;
+      state.rpsP1Choice = null;
+
+      const arena = document.getElementById('rpsDuelArena');
+      const p1Hand = document.getElementById('rpsP1Hand');
+      const p2Hand = document.getElementById('rpsP2Hand');
+      arena.classList.remove('hidden');
+      arena.classList.add('flex');
+
+      p1Hand.textContent = RPS_MAP[p1Choice].emoji;
+      p2Hand.textContent = RPS_MAP[p2Choice].emoji;
+
+      if (p1Choice === p2Choice) {
+        document.getElementById('rpsSubPrompt').textContent = `앗! 둘 다 ${RPS_MAP[p1Choice].name}(${RPS_MAP[p1Choice].emoji})로 비겼어요! 다시 가위바위보를 해주세요!`;
+        updateStatus(
+          `비겼습니다! (${RPS_MAP[p1Choice].emoji} vs ${RPS_MAP[p2Choice].emoji})`,
+          '이긴 사람이 나올 때까지 다시 가위바위보를 해주세요!'
+        );
+        return;
+      }
+
+      const p1Wins = RPS_MAP[p1Choice].beats === p2Choice;
+      state.activePlayer = p1Wins ? 1 : 2;
+      const winnerName = state.activePlayer === 1 ? '플레이어 1' : (state.vsAi ? '바바 로봇(2P)' : '플레이어 2');
+
+      state.phase = 'DICE';
+      renderAll();
+
+      document.getElementById('diceWinnerText').textContent =
+        `🎉 ${winnerName} 가위바위보 승리! (${RPS_MAP[p1Choice].emoji} vs ${RPS_MAP[p2Choice].emoji})`;
+
+      updateStatus(
+        `가위바위보 결과: [${winnerName}] 승리!`,
+        `이제 ${winnerName}이(가) 주사위를 굴려 바바 입에서 뺄 먹이 개수를 정합니다!`
+      );
+
+      if (state.vsAi && state.activePlayer === 2) {
+        document.getElementById('btnRollDice').disabled = true;
+        document.getElementById('btnRollDice').textContent = '🤖 바바 로봇이 주사위를 굴리는 중...';
+        setTimeout(() => {
+          document.getElementById('btnRollDice').disabled = false;
+          document.getElementById('btnRollDice').textContent = '🎲 주사위 굴리기!';
+          rollDice();
+        }, 1000);
+      }
+    }
+
+    function rollDice() {
+      if (state.phase !== 'DICE') return;
+      playSound('dice');
+
+      const diceBox = document.getElementById('diceBox');
+      const btnRoll = document.getElementById('btnRollDice');
+      btnRoll.disabled = true;
+      diceBox.classList.add('animate-dice');
+
+      setTimeout(() => {
+        diceBox.classList.remove('animate-dice');
+        btnRoll.disabled = false;
+
+        const rolled = Math.floor(Math.random() * 6) + 1;
+        state.diceValue = rolled;
+        state.remainingPulls = Math.min(rolled, state.mouthFoods.length);
+        state.pulledThisTurn = [];
+        diceBox.textContent = `${DICE_FACES[rolled - 1]} ${rolled}`;
+
+        state.phase = 'PULL';
+        renderAll();
+
+        const winnerName = state.activePlayer === 1 ? '플레이어 1' : (state.vsAi ? '바바 로봇(2P)' : '플레이어 2');
+        updateStatus(
+          `🎲 주사위 [${rolled}] 나왔습니다!`,
+          `${winnerName}님, 바바 입 안에 있는 먹이를 [${state.remainingPulls}개] 클릭해서 빼세요!`
+        );
+
+        if (state.vsAi && state.activePlayer === 2) {
+          setTimeout(aiPullStep, 750);
+        }
+      }, 500);
+    }
+
+    function pullFoodItem(foodId, isAiCall = false) {
+      if (state.phase !== 'PULL') return;
+      if (state.vsAi && state.activePlayer === 2 && !isAiCall) return;
+      if (state.remainingPulls <= 0) return;
+
+      const idx = state.mouthFoods.findIndex(f => f.id === foodId);
+      if (idx === -1) return;
+
+      const paw = document.getElementById('stripedPaw');
+      const pawSpeech = document.getElementById('pawSpeech');
+      paw.classList.remove('-translate-y-2');
+      paw.classList.add('translate-y-2', 'scale-105');
+      pawSpeech.textContent = '먹이 쏙! 🐾';
+      setTimeout(() => {
+        paw.classList.remove('translate-y-2', 'scale-105');
+        paw.classList.add('-translate-y-2');
+      }, 240);
+
+      if (state.trapMode && state.mouthFoods.length > 1 && Math.random() < 0.16) {
+        triggerTrapSnap();
+        return;
+      }
+
+      const [removed] = state.mouthFoods.splice(idx, 1);
+      state.remainingPulls -= 1;
+
+      if (state.activePlayer === 1) {
+        state.p1Bowl.push(removed);
+      } else {
+        state.p2Bowl.push(removed);
+      }
+      playSound('pop');
+
+      if (state.mouthFoods.length === 0) {
+        finishGame();
+        return;
+      }
+
+      if (state.remainingPulls === 0) {
+        state.phase = 'CLOSE_WAIT';
+        renderAll();
+        updateStatus(
+          `먹이를 다 뺐어요! 이제 [바바 입 닫기] 버튼을 눌러주세요!`,
+          `바바 입을 닫으면 턴이 넘어가고 다시 가위바위보를 합니다.`
+        );
+
+        if (state.vsAi && state.activePlayer === 2) {
+          setTimeout(() => closeBabaMouthAndPassTurn(), 900);
+        }
+      } else {
+        renderAll();
+        if (state.vsAi && state.activePlayer === 2) {
+          setTimeout(aiPullStep, 650);
+        }
+      }
+    }
+
+    function aiPullStep() {
+      if (state.phase !== 'PULL' || state.mouthFoods.length === 0 || state.remainingPulls <= 0) return;
+      const randomFood = state.mouthFoods[Math.floor(Math.random() * state.mouthFoods.length)];
+      pullFoodItem(randomFood.id, true);
+    }
+
+    function triggerTrapSnap() {
+      playSound('snap');
+      state.remainingPulls = 0;
+      state.phase = 'CLOSE_WAIT';
+
+      const babaHead = document.getElementById('babaHead');
+      babaHead.classList.add('animate-snap');
+      setTimeout(() => babaHead.classList.remove('animate-snap'), 450);
+
+      document.getElementById('pawSpeech').textContent = '내 손 빼~ ㅠㅠ 앗!';
+      closeBabaJawsVisual('🦷 이빨이 탁!! 내 손 빼~ ㅠㅠ 앗!', '바바 입이 갑자기 닫혀서 이번 턴 먹이 빼기가 멈췄어요!');
+
+      updateStatus(
+        '⚡ 이빨이 탁! 내 손 빼~ ㅠㅠ 앗!',
+        '바바가 입을 탁 닫아버렸어요! 다음 턴으로 넘어갑니다!'
+      );
+
+      renderAll();
+      setTimeout(() => {
+        openBabaJawsVisual();
+        state.phase = 'RPS';
+        renderAll();
+        updateStatus(
+          '다음 턴! 다시 가위바위보를 해주세요!',
+          '이긴 사람이 주사위를 굴려 남은 먹이를 뺍니다.'
+        );
+      }, 1700);
+    }
+
+    function closeBabaMouthAndPassTurn() {
+      if (state.phase !== 'CLOSE_WAIT') return;
+      playSound('snap');
+
+      const babaHead = document.getElementById('babaHead');
+      babaHead.classList.add('animate-snap');
+      setTimeout(() => babaHead.classList.remove('animate-snap'), 450);
+
+      document.getElementById('pawSpeech').textContent = '이빨이 탁! 🦷';
+      closeBabaJawsVisual('🦷 바바 입이 탁! 닫혔습니다!', '먹이가 밥그릇에 안전하게 들어갔어요! 다음 턴으로 넘어갑니다.');
+      document.getElementById('btnCloseMouth').classList.add('hidden');
+
+      updateStatus(
+        '🦷 바바 입을 탁! 닫았습니다!',
+        '뺀 먹이를 밥그릇에 넣었어요! 이제 다음 턴 가위바위보로 넘어갑니다.'
+      );
+
+      setTimeout(() => {
+        if (state.mouthFoods.length === 0) {
+          finishGame();
+          return;
+        }
+        openBabaJawsVisual();
+        document.getElementById('pawSpeech').textContent = '살금살금... 🐾';
+        document.getElementById('rpsDuelArena').classList.add('hidden');
+        document.getElementById('rpsDuelArena').classList.remove('flex');
+        document.getElementById('rpsSubPrompt').textContent = '가위바위보를 해서 이긴 사람이 주사위를 굴립니다!';
+        state.phase = 'RPS';
+        renderAll();
+        updateStatus(
+          '다음 라운드! 가위바위보를 해주세요!',
+          `바바 입속에 먹이가 ${state.mouthFoods.length}개 남았어요. 많이 가져간 사람이 승리합니다!`
+        );
+      }, 1200);
+    }
+
+    function closeBabaJawsVisual(title, sub) {
+      document.getElementById('babaMouthInterior').classList.add('hidden');
+      const overlay = document.getElementById('mouthClosedOverlay');
+      overlay.classList.remove('hidden');
+      document.getElementById('closedOverlayTitle').textContent = title;
+      document.getElementById('closedOverlaySub').textContent = sub;
+      document.getElementById('jawArrowText').textContent = '이빨이 탁! 닫힘';
+      document.getElementById('babaEyelid').classList.add('hidden');
+      document.getElementById('babaPupil').className = 'w-4 h-4 rounded-full bg-rose-400 animate-ping';
+    }
+
+    function openBabaJawsVisual() {
+      document.getElementById('babaMouthInterior').classList.remove('hidden');
+      document.getElementById('mouthClosedOverlay').classList.add('hidden');
+      document.getElementById('jawArrowText').textContent = '입 벌리는 중';
+      document.getElementById('babaEyelid').classList.remove('hidden');
+      document.getElementById('babaPupil').className = 'w-3 h-3 rounded-full bg-emerald-300 transform translate-y-1';
+    }
+
+    function finishGame() {
+      state.phase = 'GAMEOVER';
+      playSound('win');
+      renderAll();
+
+      const p1Cnt = state.p1Bowl.length;
+      const p2Cnt = state.p2Bowl.length;
+      const p2Label = state.vsAi ? '바바 로봇(2P)' : '플레이어 2';
+
+      let winTitle = '';
+      if (p1Cnt > p2Cnt) {
+        winTitle = `🏆 플레이어 1 승리!! (${p1Cnt}개 vs ${p2Cnt}개)`;
+      } else if (p2Cnt > p1Cnt) {
+        winTitle = `🏆 ${p2Label} 승리!! (${p2Cnt}개 vs ${p1Cnt}개)`;
+      } else {
+        winTitle = `🤝 무승부!! 두 사람 모두 ${p1Cnt}개씩 가져갔어요!`;
+      }
+
+      document.getElementById('winnerBanner').textContent = winTitle;
+      document.getElementById('winnerSummary').textContent =
+        `바바 입속의 먹이를 모두 꺼냈어요! 밥그릇에 먹이를 더 많이 모은 사람의 승리입니다!`;
+
+      updateStatus(
+        winTitle,
+        '바바의 먹이를 모두 훔쳤습니다! 다시 하려면 [새 게임] 또는 아래 버튼을 눌러주세요.'
+      );
+    }
+
+    function resetGame() {
+      state.phase = 'SETUP';
+      state.mouthFoods = [];
+      state.p1Bowl = [];
+      state.p2Bowl = [];
+      state.remainingPulls = 0;
+      state.rpsP1Choice = null;
+      openBabaJawsVisual();
+      document.getElementById('pawSpeech').textContent = '살금살금... 🐾';
+      document.getElementById('rpsDuelArena').classList.add('hidden');
+      document.getElementById('rpsDuelArena').classList.remove('flex');
+      renderAll();
+      updateStatus(
+        '바닥에 바바 모형과 밥그릇 두 개를 놓았어요!',
+        '먼저 바바의 입 안에 맛있는 먹이 모형들을 넣어주세요!'
+      );
+    }
+
+    function updateStatus(title, sub) {
+      document.getElementById('statusTitle').textContent = title;
+      document.getElementById('statusSub').textContent = sub;
+    }
+
+    function renderAll() {
+      const activeStep =
+        state.phase === 'SETUP' ? 1 :
+        (state.phase === 'RPS' || state.phase === 'DICE') ? 2 :
+        state.phase === 'PULL' ? 3 :
+        state.phase === 'CLOSE_WAIT' ? 4 : 0;
+
+      for (let i = 1; i <= 4; i++) {
+        const el = document.getElementById('stepIndicator' + i);
+        if (i === activeStep) {
+          el.className = 'p-2 rounded-xl border-2 border-emerald-500 bg-emerald-500/15 text-emerald-400 scale-[1.02] transition-all';
+        } else {
+          el.className = 'p-2 rounded-xl border border-[var(--border)] opacity-60 transition-all';
+        }
+      }
+
+      document.getElementById('remainingFoodCount').textContent = state.mouthFoods.length;
+      const toPullBadge = document.getElementById('toPullBadge');
+      if (state.phase === 'PULL' && state.remainingPulls > 0) {
+        toPullBadge.classList.remove('hidden');
+        document.getElementById('toPullCount').textContent = state.remainingPulls;
+      } else {
+        toPullBadge.classList.add('hidden');
+      }
+
+      const mouthContainer = document.getElementById('babaMouthInterior');
+      mouthContainer.innerHTML = '';
+      if (state.mouthFoods.length === 0) {
+        const emptyMsg = document.createElement('div');
+        emptyMsg.className = 'text-xs font-bold text-rose-200/70 py-6 text-center';
+        emptyMsg.textContent = state.phase === 'SETUP'
+          ? '아직 바바 입이 비어 있어요! 아래 버튼으로 먹이를 넣어주세요 🐟'
+          : '바바 입속 먹이를 전부 꺼냈어요! 🎉';
+        mouthContainer.appendChild(emptyMsg);
+      } else {
+        const canClickFood = state.phase === 'PULL' && !(state.vsAi && state.activePlayer === 2);
+        state.mouthFoods.forEach(food => {
+          const btn = document.createElement('button');
+          btn.disabled = !canClickFood;
+          btn.onclick = () => pullFoodItem(food.id, false);
+          btn.title = canClickFood ? `${food.name} 꺼내기!` : food.name;
+          btn.className = `food-item w-11 h-11 rounded-2xl flex items-center justify-center text-2xl shadow border-2 ${
+            canClickFood
+              ? 'bg-amber-100 border-amber-400 cursor-pointer ring-2 ring-amber-300/50 animate-float'
+              : 'bg-rose-900/60 border-rose-400/30 cursor-default opacity-90'
+          }`;
+          btn.textContent = food.emoji;
+          mouthContainer.appendChild(btn);
+        });
+      }
+
+      const p1Container = document.getElementById('p1BowlItems');
+      p1Container.innerHTML = '';
+      state.p1Bowl.forEach(f => {
+        const span = document.createElement('span');
+        span.className = 'text-xl animate-pop inline-block';
+        span.textContent = f.emoji;
+        p1Container.appendChild(span);
+      });
+      document.getElementById('p1Score').textContent = state.p1Bowl.length;
+
+      const p2Container = document.getElementById('p2BowlItems');
+      p2Container.innerHTML = '';
+      state.p2Bowl.forEach(f => {
+        const span = document.createElement('span');
+        span.className = 'text-xl animate-pop inline-block';
+        span.textContent = f.emoji;
+        p2Container.appendChild(span);
+      });
+      document.getElementById('p2Score').textContent = state.p2Bowl.length;
+
+      const p1Badge = document.getElementById('p1TurnBadge');
+      const p2Badge = document.getElementById('p2TurnBadge');
+      if (state.phase === 'DICE' || state.phase === 'PULL' || state.phase === 'CLOSE_WAIT') {
+        if (state.activePlayer === 1) {
+          p1Badge.classList.remove('hidden');
+          p2Badge.classList.add('hidden');
+        } else {
+          p1Badge.classList.add('hidden');
+          p2Badge.classList.remove('hidden');
+        }
+      } else {
+        p1Badge.classList.add('hidden');
+        p2Badge.classList.add('hidden');
+      }
+
+      document.getElementById('phaseSetupControls').classList.toggle('hidden', state.phase !== 'SETUP');
+      document.getElementById('phaseRpsControls').classList.toggle('hidden', state.phase !== 'RPS');
+      document.getElementById('phaseDiceControls').classList.toggle('hidden', state.phase !== 'DICE');
+      document.getElementById('phasePullControls').classList.toggle('hidden', !(state.phase === 'PULL' || state.phase === 'CLOSE_WAIT'));
+      document.getElementById('phaseGameOverControls').classList.toggle('hidden', state.phase !== 'GAMEOVER');
+
+      if (state.phase === 'PULL') {
+        const who = state.activePlayer === 1 ? '플레이어 1' : (state.vsAi ? '바바 로봇(2P)' : '플레이어 2');
+        document.getElementById('pullInstruction').textContent =
+          state.vsAi && state.activePlayer === 2
+            ? `🤖 바바 로봇이 줄무늬 손으로 먹이를 꺼내고 있어요... (${state.remainingPulls}개 남음)`
+            : `👆 [${who}] 차례! 바바 입 안의 먹이를 클릭해서 밥그릇에 넣으세요! (${state.remainingPulls}개 더 뺄 수 있음)`;
+        document.getElementById('btnCloseMouth').classList.add('hidden');
+      } else if (state.phase === 'CLOSE_WAIT') {
+        document.getElementById('pullInstruction').textContent =
+          '주사위 숫자만큼 먹이를 모두 밥그릇에 담았어요! 이제 바바 입을 닫아주세요!';
+        document.getElementById('btnCloseMouth').classList.remove('hidden');
+      }
+    }
+
+    renderAll();
+  </script>
+</body>
+</html>

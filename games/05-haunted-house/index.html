@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>5호 게임: 귀신의 집 - 코인을 제일 많이 모은 사람이 승!</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --background: #0b0914;
+      --foreground: #f8fafc;
+      --card: #161224;
+      --border: #3b2d54;
+      --muted-foreground: #a39bbb;
+      --secondary: #261e3a;
+      --secondary-foreground: #f1f5f9;
+    }
+
+    @keyframes floatGhost {
+      0%, 100% { transform: translateY(0px) rotate(-2deg); }
+      50% { transform: translateY(-5px) rotate(2deg); }
+    }
+    @keyframes coinDrop {
+      0% { transform: translateY(-35px) scale(0.4) rotate(-25deg); opacity: 0; }
+      70% { transform: translateY(4px) scale(1.1) rotate(8deg); opacity: 1; }
+      100% { transform: translateY(0) scale(1) rotate(0deg); opacity: 1; }
+    }
+    @keyframes monsterShake {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      20% { transform: translate(-6px, -3px) rotate(-6deg) scale(1.08); }
+      40% { transform: translate(6px, 3px) rotate(6deg) scale(1.08); }
+      60% { transform: translate(-4px, 2px) rotate(-4deg); }
+      80% { transform: translate(4px, -2px) rotate(4deg); }
+    }
+    @keyframes diceRoll {
+      0% { transform: rotate(0deg) scale(1); }
+      25% { transform: rotate(90deg) scale(1.15); }
+      50% { transform: rotate(180deg) scale(0.95); }
+      75% { transform: rotate(270deg) scale(1.1); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+    @keyframes pulseGold {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.7); }
+      50% { box-shadow: 0 0 22px 6px rgba(250, 204, 21, 0.95); }
+    }
+
+    .animate-ghost { animation: floatGhost 2.4s ease-in-out infinite; }
+    .animate-coin { animation: coinDrop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+    .animate-monster { animation: monsterShake 0.45s ease-in-out; }
+    .animate-dice { animation: diceRoll 0.45s ease-in-out infinite; }
+    .animate-gold { animation: pulseGold 1.3s infinite; }
+
+    /* Custom rectangular coin token [1] just like the drawing */
+    .coin-token {
+      background: linear-gradient(135deg, #fde047 0%, #eab308 55%, #ca8a04 100%);
+      border: 2px solid #fef08a;
+      box-shadow: inset 0 -2px 0 rgba(113, 63, 18, 0.45), 0 2px 4px rgba(0,0,0,0.4);
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased min-h-screen p-3 md:p-5 select-none">
+  <div class="max-w-5xl mx-auto space-y-4">
+
+    <!-- Top Navigation Bar -->
+    <div class="flex items-center justify-between flex-wrap gap-2">
+      <a href="../../index.html" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/40 hover:bg-purple-500/30 transition">
+        <span>🏠 게임 연구소 목록으로</span>
+      </a>
+      <button onclick="toggleSketchModal(true)" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition">
+        <span>🎨 내 원작 설계도 그림 (2장) 보기</span>
+      </button>
+    </div>
+
+    <!-- Header Banner -->
+    <header class="bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-lg flex flex-col md:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-14 h-14 rounded-2xl bg-purple-500/20 border-2 border-purple-400/50 flex items-center justify-center text-3xl shrink-0 animate-ghost">
+          👻🏰
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="px-2 py-0.5 text-xs font-black rounded-full bg-purple-500/25 text-purple-300 border border-purple-400/40">
+              5호 작품 · 코인 56X & 말 6X 보드게임
+            </span>
+            <span class="px-2 py-0.5 text-xs font-black rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40">
+              🔞 나이 제한: 9세 이상
+            </span>
+            <span class="text-xs text-[var(--muted-foreground)] font-semibold">게임 인원: 4~6명</span>
+          </div>
+          <h1 class="text-xl md:text-2xl font-black tracking-tight flex items-center gap-2 mt-1">
+            <span>귀신의 집</span>
+            <span class="text-xs font-extrabold px-2.5 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-400/40">
+              🪙 코인을 제일 많이 모은 사람이 승!
+            </span>
+          </h1>
+        </div>
+      </div>
+
+      <!-- Game Options Controls -->
+      <div class="flex flex-wrap items-center gap-2 justify-end">
+        <!-- Player Count Selector (4~6명 as written in notebook!) -->
+        <div class="flex items-center bg-slate-950 p-1 rounded-xl border border-purple-800/60 text-xs font-extrabold">
+          <button id="pCntBtn4" onclick="setPlayerCount(4)" class="px-2.5 py-1 rounded-lg transition">4명</button>
+          <button id="pCntBtn5" onclick="setPlayerCount(5)" class="px-2.5 py-1 rounded-lg transition">5명</button>
+          <button id="pCntBtn6" onclick="setPlayerCount(6)" class="px-2.5 py-1 rounded-lg transition">6명(풀)</button>
+        </div>
+
+        <!-- Lap Selector -->
+        <div class="flex items-center bg-slate-950 p-1 rounded-xl border border-purple-800/60 text-xs font-extrabold">
+          <button id="lapBtn1" onclick="setTargetLaps(1)" class="px-2.5 py-1 rounded-lg transition">1바퀴</button>
+          <button id="lapBtn2" onclick="setTargetLaps(2)" class="px-2.5 py-1 rounded-lg transition">2바퀴</button>
+        </div>
+
+        <button id="btnVsMode" onclick="toggleVsMode()" class="px-3 py-1.5 rounded-xl text-xs font-bold border border-[var(--border)] bg-[var(--secondary)] text-[var(--secondary-foreground)] hover:opacity-90 transition">
+          🤖 1P vs 로봇들(AI)
+        </button>
+        <button onclick="resetGame()" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-500 transition">
+          🔄 새 게임
+        </button>
+      </div>
+    </header>
+
+    <!-- 5-Step Rule Progress Bar (설명서 1~5번 그대로!) -->
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-3 shadow-sm">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs font-bold">
+        <div id="stepIndicator1" class="p-2 rounded-xl border transition-all">
+          <div class="text-base mb-0.5">🪙 설명서 1번</div>
+          <div>코인을 가운데에 붓기!</div>
+        </div>
+        <div id="stepIndicator2" class="p-2 rounded-xl border transition-all">
+          <div class="text-base mb-0.5">🎲 설명서 1·2번</div>
+          <div>주사위 굴려 앞으로 가기</div>
+        </div>
+        <div id="stepIndicator3" class="p-2 rounded-xl border transition-all">
+          <div class="text-base mb-0.5">👻 설명서 3·4번</div>
+          <div>코인 획득 / 괴물 3개 반납</div>
+        </div>
+        <div id="stepIndicator4" class="p-2 rounded-xl border transition-all">
+          <div class="text-base mb-0.5">🏆 설명서 5번</div>
+          <div>코인 제일 많이 모은 사람 승!</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Game Container -->
+    <div class="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-4 md:p-6 shadow-xl space-y-5">
+
+      <!-- Status Banner -->
+      <div id="statusBanner" class="p-3.5 rounded-2xl bg-purple-500/15 border border-purple-400/40 text-center">
+        <p id="statusTitle" class="text-base md:text-lg font-extrabold text-white">
+          시작하기 전에 꼭 코인 56개를 보드판 가운데에 부어 줘야 합니다!
+        </p>
+        <p id="statusSub" class="text-xs md:text-sm text-[var(--muted-foreground)] mt-0.5">
+          아래 [🪙 가운데에 코인 56개 붓기!] 버튼을 눌러 게임을 시작하세요!
+        </p>
+      </div>
+
+      <!-- INTERACTIVE CONTROL BAR -->
+      <div class="bg-slate-950/90 border-2 border-purple-800/60 rounded-2xl p-4">
+
+        <!-- PHASE 1: POUR 56 COINS INTO CENTER (시작하기 전에 꼭 코인을 가운데에 부어 줘야 합니다) -->
+        <div id="phasePour" class="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div class="flex items-center gap-3.5">
+            <div class="w-16 h-16 rounded-2xl bg-amber-400/20 border-2 border-amber-400 flex items-center justify-center text-3xl shrink-0">
+              🪙
+            </div>
+            <div class="text-left">
+              <div class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-400 text-slate-950">
+                ※ 설명서 1번 필수 준비 ※
+              </div>
+              <div class="text-base md:text-lg font-black text-white mt-0.5">
+                "시작하기 전에 꼭 코인을 가운데에 부어 줘야 합니다."
+              </div>
+              <div class="text-xs text-slate-300">
+                코인 56개(56X)를 보드판 한가운데 동그라미에 와르르 부어주세요!
+              </div>
+            </div>
+          </div>
+
+          <button
+            onclick="pourCoinsToStart()"
+            class="w-full sm:w-auto px-6 py-3.5 rounded-2xl font-black text-sm bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-lg transition transform active:scale-95 shrink-0 animate-gold"
+          >
+            🪙 가운데에 코인 56개 와르르 붓기!
+          </button>
+        </div>
+
+        <!-- PHASE 2: ROLL DICE & MOVE -->
+        <div id="phaseDice" class="hidden flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div class="flex items-center gap-3.5">
+            <div id="diceBox" class="w-16 h-16 rounded-2xl bg-white text-slate-900 border-4 border-purple-400 shadow-lg flex items-center justify-center text-4xl font-black shrink-0">
+              🎲
+            </div>
+            <div class="text-left">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span id="turnBadgeText" class="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-purple-400 text-slate-950">
+                  1P 차례
+                </span>
+                <span id="turnLapInfo" class="text-xs font-bold text-amber-300"></span>
+              </div>
+              <div id="diceTurnTitle" class="text-base md:text-lg font-black text-white mt-0.5">
+                👻 유령(1P)이 주사위를 굴릴 차례예요!
+              </div>
+              <div id="diceTurnSub" class="text-xs text-slate-300">
+                주사위에 나온 수만큼 앞으로 가시오! (코인 칸은 획득, 괴물 칸은 코인 3개 반납!)
+              </div>
+            </div>
+          </div>
+
+          <button
+            id="btnRollDice"
+            onclick="rollDice()"
+            class="w-full sm:w-auto px-6 py-3.5 rounded-2xl font-black text-sm bg-purple-400 hover:bg-purple-300 text-slate-950 shadow-lg transition transform active:scale-95 shrink-0"
+          >
+            🎲 주사위 굴리기!
+          </button>
+        </div>
+
+        <!-- PHASE 3: GAME OVER -->
+        <div id="phaseGameOver" class="hidden text-center py-3 space-y-3">
+          <div id="winnerEmoji" class="text-5xl animate-bounce">🏆👻🪙</div>
+          <h3 id="winnerTitle" class="text-xl font-black text-amber-300">
+            유령(1P) 최종 승리!!
+          </h3>
+          <p id="winnerSub" class="text-xs text-slate-300">
+            다시 시작까지 도착한다고 승리는 아닙니다! 코인을 제일 많이 모아서 승리했어요!
+          </p>
+          <button onclick="resetGame()" class="px-6 py-3 rounded-2xl font-black text-sm bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-lg transition">
+            🔄 새 게임 시작하기!
+          </button>
+        </div>
+
+      </div>
+
+      <!-- MAIN LAYOUT: 6 SPOOKY PLAYERS SCOREBOARD + 4x5 HAUNTED HOUSE BOARD -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+        <!-- Left / Top: 6 Characters Status List (유령, 마녀, 좀비, 드라큘라, 해골, 달걀귀신) -->
+        <div class="lg:col-span-5 space-y-2.5">
+          <div class="flex items-center justify-between px-1">
+            <span class="text-xs font-black text-purple-300">🎭 참가 캐릭터 (말 6종류 · 코인 순위)</span>
+            <span class="text-[11px] text-amber-300 font-bold">목표: <span id="goalLapText">1</span>바퀴 완주 후 최다 코인!</span>
+          </div>
+          <div id="playersListContainer" class="space-y-2">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Right / Center: HAUNTED HOUSE 4x5 PERIMETER BOARD + CENTER COIN POOL -->
+        <div class="lg:col-span-7 bg-gradient-to-b from-purple-950/60 via-slate-950 to-stone-950 border-2 border-purple-500/50 rounded-3xl p-3 sm:p-5 shadow-2xl">
+          <div class="flex items-center justify-between text-xs font-bold text-purple-300 mb-3 px-1">
+            <span>🏰 귀신의 집 보드판 (판 1X)</span>
+            <span class="text-amber-300">↖ 시계 방향으로 돌아 START로!</span>
+          </div>
+
+          <!-- 4 columns x 5 rows Grid matching the notebook sketch -->
+          <div id="hauntedBoardGrid" class="grid grid-cols-4 grid-rows-5 gap-2 sm:gap-2.5 aspect-[4/5] max-w-md mx-auto">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Official Rules Card (※ 구성품 ※ & ※ 설명서 ※) -->
+      <div class="bg-slate-950/70 border border-purple-800/60 rounded-2xl p-4 space-y-2">
+        <div class="text-xs font-extrabold text-amber-400 flex items-center gap-1.5">
+          <span>📜</span>
+          <span>수석 디자이너의 공식 <귀신의 집> 구성품 & 설명서 (9세 이상 · 4~6명)</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-300 leading-relaxed">
+          <div class="space-y-1">
+            <div class="font-bold text-purple-300">※ 구성품 ※</div>
+            <ul class="space-y-0.5 list-disc list-inside text-[11px]">
+              <li><strong>판 1X</strong>: 코인 칸(1X, 2X, 3X, 5X, 6X), 괴물 칸, GO BACK 칸, 가운데 코인 동그라미</li>
+              <li><strong>코인 🪙 56X</strong>: 황금 코인 56개</li>
+              <li><strong>말 6X</strong>: 👻유령, 🧙‍♀️마녀, 🧟좀비, 🧛드라큘라, 💀해골, 🥚달걀귀신</li>
+              <li><strong>주사위 🎲 1X</strong></li>
+            </ul>
+          </div>
+          <div class="bg-slate-900/80 rounded-xl p-2.5 border border-purple-900/60 space-y-1">
+            <div class="font-bold text-amber-300">※ 설명서 ※</div>
+            <ol class="space-y-0.5 list-decimal list-inside text-[11px]">
+              <li>주사위를 굴리시오. <strong>(시작하기 전에 꼭 코인을 가운데에 부어 줘야 합니다.)</strong></li>
+              <li>주사위에 나온 수만큼 앞으로 가시오.</li>
+              <li>칸에 <strong>코인 표시</strong>가 있다면 그 칸에 나온 숫자만큼 코인을 가져가세요.</li>
+              <li>칸에 <strong>괴물 그림</strong>이 있다면 코인을 <strong>3개씩 반납</strong>하세요.</li>
+              <li><strong>다시 시작까지 도착한다고 승리는 아닙니다. 코인을 제일 많이 모은 사람이 승!</strong></li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Original Sketch Modal (Shows both Page 1 & Page 2) -->
+  <div id="sketchModal" class="hidden fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4 overflow-y-auto" onclick="toggleSketchModal(false)">
+    <div class="bg-slate-900 border-2 border-purple-400 rounded-3xl max-w-4xl w-full p-4 space-y-3 my-auto" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-black text-purple-300">🎨 <귀신의 집> 원작 노트 설계도 (1페이지 & 2페이지)</h3>
+        <button onclick="toggleSketchModal(false)" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-500 text-white">닫기 ✕</button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="space-y-1 text-center">
+          <div class="text-xs font-bold text-slate-300">📄 1페이지: 제목, 구성품(판 1X, 코인 56X, 말 6X), 설명서 1~3번</div>
+          <img src="sketch.jpg" alt="귀신의 집 원작 스케치 1" class="w-full rounded-2xl border border-slate-700 max-h-[65vh] object-contain mx-auto" />
+        </div>
+        <div class="space-y-1 text-center">
+          <div class="text-xs font-bold text-slate-300">📄 2페이지: 설명서 4번(괴물 칸 코인 3개 반납) & 5번(최다 코인 승리!)</div>
+          <img src="sketch2.jpg" alt="귀신의 집 원작 스케치 2" class="w-full rounded-2xl border border-slate-700 max-h-[65vh] object-contain mx-auto" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleSketchModal(show) {
+      document.getElementById('sketchModal').classList.toggle('hidden', !show);
+    }
+
+    // Web Audio Synthesizer
+    let audioCtx = null;
+    function playSound(type) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const now = audioCtx.currentTime;
+
+        if (type === 'pour') {
+          // Cascading coins sound!
+          for (let i = 0; i < 8; i++) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(700 + (i % 4) * 220 + i * 40, now + i * 0.05);
+            gain.gain.setValueAtTime(0.14, now + i * 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.05 + 0.09);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + i * 0.05);
+            osc.stop(now + i * 0.05 + 0.09);
+          }
+        } else if (type === 'step') {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(320, now);
+          osc.frequency.exponentialRampToValueAtTime(590, now + 0.07);
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.08);
+        } else if (type === 'dice') {
+          for (let i = 0; i < 4; i++) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(230 + i * 85, now + i * 0.055);
+            gain.gain.setValueAtTime(0.13, now + i * 0.055);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.055 + 0.05);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + i * 0.055);
+            osc.stop(now + i * 0.055 + 0.05);
+          }
+        } else if (type === 'coin') {
+          [587.33, 880, 1174.66].forEach((freq, idx) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+            gain.gain.setValueAtTime(0.18, now + idx * 0.07);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.16);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + idx * 0.07);
+            osc.stop(now + idx * 0.07 + 0.16);
+          });
+        } else if (type === 'monster') {
+          // Spooky monster groan when losing 3 coins!
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.exponentialRampToValueAtTime(75, now + 0.42);
+          gain.gain.setValueAtTime(0.22, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.45);
+        } else if (type === 'win') {
+          const notes = [523.25, 659.25, 783.99, 1046.5];
+          notes.forEach((freq, idx) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.11);
+            gain.gain.setValueAtTime(0.2, now + idx * 0.11);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.11 + 0.28);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + idx * 0.11);
+            osc.stop(now + idx * 0.11 + 0.28);
+          });
+        }
+      } catch (e) {}
+    }
+
+    const TOTAL_INITIAL_COINS = 56;
+    const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+
+    // 6 Spooky Characters (말 6X: 유령, 마녀, 좀비, 드라큘라, 해골, 달걀귀신)
+    const CHARACTERS = [
+      { id: 0, name: '유령',     emoji: '👻', color: 'border-sky-400 bg-sky-950/40 text-sky-200', badge: 'bg-sky-400 text-slate-950' },
+      { id: 1, name: '마녀',     emoji: '🧙‍♀️', color: 'border-purple-400 bg-purple-950/40 text-purple-200', badge: 'bg-purple-400 text-slate-950' },
+      { id: 2, name: '좀비',     emoji: '🧟', color: 'border-lime-400 bg-lime-950/40 text-lime-200', badge: 'bg-lime-400 text-slate-950' },
+      { id: 3, name: '드라큘라', emoji: '🧛', color: 'border-rose-400 bg-rose-950/40 text-rose-200', badge: 'bg-rose-400 text-slate-950' },
+      { id: 4, name: '해골',     emoji: '💀', color: 'border-stone-300 bg-stone-900/60 text-stone-200', badge: 'bg-stone-300 text-slate-950' },
+      { id: 5, name: '달걀귀신', emoji: '🥚', color: 'border-amber-300 bg-amber-950/40 text-amber-200', badge: 'bg-amber-300 text-slate-950' }
+    ];
+
+    // 14 Perimeter Spaces matching the exact 4x5 rectangular board in the notebook sketch!
+    // Clockwise starting from bottom-left (Row 5, Col 1):
+    const BOARD_SPACES = [
+      { idx: 0,  row: 5, col: 1, type: 'START',   label: 'START',   sub: '출발·도착', coins: 0, icon: '🚪' },
+      { idx: 1,  row: 4, col: 1, type: 'MONSTER', label: '괴물',    sub: '코인 -3개', coins: 3, icon: '🧟' },
+      { idx: 2,  row: 3, col: 1, type: 'COIN',    label: '🪙 1X',   sub: '코인 +1개', coins: 1, icon: '🪙' },
+      { idx: 3,  row: 2, col: 1, type: 'COIN',    label: '🪙 6X',   sub: '코인 +6개!', coins: 6, icon: '💰' },
+      { idx: 4,  row: 1, col: 1, type: 'COIN',    label: '🪙 2X',   sub: '코인 +2개', coins: 2, icon: '🪙' },
+      { idx: 5,  row: 1, col: 2, type: 'MONSTER', label: '해골괴물', sub: '코인 -3개', coins: 3, icon: '💀' },
+      { idx: 6,  row: 1, col: 3, type: 'COIN',    label: '🪙 3X',   sub: '코인 +3개', coins: 3, icon: '🪙' },
+      { idx: 7,  row: 1, col: 4, type: 'MONSTER', label: '유령괴물', sub: '코인 -3개', coins: 3, icon: '👻' },
+      { idx: 8,  row: 2, col: 4, type: 'GOBACK',  label: 'GO BACK', sub: '뒤로 2칸!', coins: 0, icon: '↩️' },
+      { idx: 9,  row: 3, col: 4, type: 'COIN',    label: '🪙 2X',   sub: '코인 +2개', coins: 2, icon: '🪙' },
+      { idx: 10, row: 4, col: 4, type: 'MONSTER', label: '해골괴물', sub: '코인 -3개', coins: 3, icon: '💀' },
+      { idx: 11, row: 5, col: 4, type: 'COIN',    label: '🪙 1X',   sub: '코인 +1개', coins: 1, icon: '🪙' },
+      { idx: 12, row: 5, col: 3, type: 'COIN',    label: '🪙 5X',   sub: '코인 +5개!', coins: 5, icon: '💰' },
+      { idx: 13, row: 5, col: 2, type: 'MONSTER', label: '처녀귀신', sub: '코인 -3개', coins: 3, icon: '👻' }
+    ];
+
+    let state = {
+      playerCount: 4, // 4~6명
+      targetLaps: 1,  // 1바퀴 or 2바퀴
+      vsAi: true,
+      phase: 'POUR',  // 'POUR' | 'DICE' | 'MOVING' | 'GAMEOVER'
+      centerCoins: 0, // Poured to 56 when game starts
+      activePlayerIdx: 0,
+      players: [],    // { id, pos, laps, coins, finished }
+      lastEventSpaceIdx: null
+    };
+
+    function initPlayers() {
+      state.players = [];
+      for (let i = 0; i < state.playerCount; i++) {
+        state.players.push({
+          id: i,
+          pos: 0,
+          laps: 0,
+          coins: 0,
+          finished: false
+        });
+      }
+    }
+
+    function setPlayerCount(cnt) {
+      state.playerCount = cnt;
+      resetGame();
+    }
+
+    function setTargetLaps(laps) {
+      state.targetLaps = laps;
+      document.getElementById('goalLapText').textContent = laps;
+      resetGame();
+    }
+
+    function toggleVsMode() {
+      state.vsAi = !state.vsAi;
+      document.getElementById('btnVsMode').textContent =
+        state.vsAi ? '🤖 1P vs 로봇들(AI)' : '👨‍👩‍👧‍👦 다 같이 직접 굴리기';
+      resetGame();
+    }
+
+    function isAiPlayer(idx) {
+      return state.vsAi && idx > 0;
+    }
+
+    function getPlayerLabel(idx) {
+      const ch = CHARACTERS[idx];
+      if (idx === 0) return `${ch.emoji} ${ch.name}(1P)`;
+      return state.vsAi
+        ? `${ch.emoji} ${ch.name} 로봇(${idx + 1}P)`
+        : `${ch.emoji} ${ch.name}(${idx + 1}P)`;
+    }
+
+    function updateStatus(title, sub) {
+      document.getElementById('statusTitle').textContent = title;
+      document.getElementById('statusSub').textContent = sub;
+    }
+
+    function resetGame() {
+      state.phase = 'POUR';
+      state.centerCoins = 0;
+      state.activePlayerIdx = 0;
+      state.lastEventSpaceIdx = null;
+      initPlayers();
+      document.getElementById('diceBox').textContent = '🎲';
+
+      updateStatus(
+        '시작하기 전에 꼭 코인 56개를 보드판 가운데에 부어 줘야 합니다!',
+        '아래 [🪙 가운데에 코인 56개 와르르 붓기!] 버튼을 눌러 게임을 시작하세요!'
+      );
+      renderUI();
+    }
+
+    // STEP 1: Pour 56 Coins into the Center Circle!
+    function pourCoinsToStart() {
+      if (state.phase !== 'POUR') return;
+      state.centerCoins = TOTAL_INITIAL_COINS;
+      state.phase = 'DICE';
+      playSound('pour');
+
+      updateStatus(
+        '촤르르~ 🪙 가운데 동그라미에 황금 코인 56개를 모두 부었습니다!',
+        `${getPlayerLabel(0)}부터 주사위를 굴려 귀신의 집을 출발하세요!`
+      );
+      renderUI();
+    }
+
+    function renderPlayersList() {
+      const container = document.getElementById('playersListContainer');
+      container.innerHTML = '';
+
+      for (let i = 0; i < state.playerCount; i++) {
+        const p = state.players[i];
+        const ch = CHARACTERS[i];
+        const isCurrent = (state.phase === 'DICE' || state.phase === 'MOVING') && state.activePlayerIdx === i;
+
+        const row = document.createElement('div');
+        row.className = `p-3 rounded-2xl border-2 flex items-center justify-between transition-all ${
+          isCurrent ? `${ch.color} ring-2 ring-amber-400 scale-[1.01] shadow-md` : 'border-slate-800 bg-slate-900/60 opacity-85'
+        }`;
+
+        const spName = BOARD_SPACES[p.pos].label;
+
+        row.innerHTML = `
+          <div class="flex items-center gap-2.5">
+            <div class="w-10 h-10 rounded-xl bg-black/30 border border-white/15 flex items-center justify-center text-2xl shrink-0">
+              ${ch.emoji}
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-black ${ch.badge}">${i + 1}P</span>
+                <span class="text-sm font-black text-white">${ch.name}</span>
+                ${isCurrent ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 animate-pulse">차례!</span>' : ''}
+                ${p.finished ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-400 text-slate-950">완주 완료!</span>' : ''}
+              </div>
+              <div class="text-[11px] text-slate-300 mt-0.5">
+                위치: <strong>${spName}</strong> · 바퀴: <strong>${p.laps}/${state.targetLaps}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-right">
+            <div class="text-[10px] text-amber-200/80 font-bold">모은 코인</div>
+            <div class="text-lg font-black text-amber-400 flex items-center justify-end gap-1">
+              <span>🪙</span><span>${p.coins}개</span>
+            </div>
+          </div>
+        `;
+        container.appendChild(row);
+      }
+    }
+
+    function renderHauntedBoard() {
+      const grid = document.getElementById('hauntedBoardGrid');
+      grid.innerHTML = '';
+
+      // Render each of the 14 perimeter cells at their exact (row, col)
+      BOARD_SPACES.forEach(sp => {
+        const cell = document.createElement('div');
+        cell.style.gridRow = sp.row;
+        cell.style.gridColumn = sp.col;
+
+        let styleClass = '';
+        if (sp.type === 'START') {
+          styleClass = 'border-2 border-emerald-400 bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 text-emerald-300';
+        } else if (sp.type === 'COIN') {
+          styleClass = sp.coins >= 5
+            ? 'border-2 border-amber-300 bg-gradient-to-br from-amber-900/70 via-amber-950/80 to-slate-950 text-amber-200 shadow-md'
+            : 'border-2 border-amber-500/70 bg-gradient-to-br from-amber-950/50 to-slate-900 text-amber-300';
+        } else if (sp.type === 'MONSTER') {
+          styleClass = 'border-2 border-rose-500/80 bg-gradient-to-br from-rose-950/70 via-purple-950/60 to-slate-950 text-rose-200';
+        } else if (sp.type === 'GOBACK') {
+          styleClass = 'border-2 border-sky-400 bg-gradient-to-br from-sky-950/70 to-slate-900 text-sky-200';
+        }
+
+        if (state.lastEventSpaceIdx === sp.idx) {
+          styleClass += ' ring-4 ring-amber-400 animate-monster';
+        }
+
+        // Find which players are standing on this space
+        const standingPlayers = state.players.filter(p => p.pos === sp.idx);
+
+        cell.className = `rounded-2xl p-1.5 flex flex-col items-center justify-between text-center relative select-none transition-all ${styleClass}`;
+        cell.innerHTML = `
+          <div class="w-full flex items-center justify-between px-1 text-[9px] font-bold opacity-75">
+            <span>#${sp.idx}</span>
+            <span>${sp.icon}</span>
+          </div>
+          <div class="leading-tight my-0.5">
+            <div class="text-xs sm:text-sm font-black tracking-tight">${sp.label}</div>
+            <div class="text-[9px] font-bold opacity-85">${sp.sub}</div>
+          </div>
+          <div class="min-h-[22px] flex flex-wrap items-center justify-center gap-0.5">
+            ${standingPlayers.map(p => `<span class="text-base sm:text-lg drop-shadow" title="${CHARACTERS[p.id].name}">${CHARACTERS[p.id].emoji}</span>`).join('')}
+          </div>
+        `;
+
+        grid.appendChild(cell);
+      });
+
+      // Render the Giant Center Circle (Cols 2..3, Rows 2..4) where the 56 coins are poured!
+      const centerPool = document.createElement('div');
+      centerPool.style.gridColumn = '2 / span 2';
+      centerPool.style.gridRow = '2 / span 3';
+      centerPool.className = 'p-2 flex items-center justify-center';
+
+      const visualCoinCount = Math.min(state.centerCoins, 28);
+      let coinsHtml = '';
+      for (let i = 0; i < visualCoinCount; i++) {
+        coinsHtml += `<span class="coin-token inline-flex items-center justify-center w-5 h-6 rounded text-[10px] font-black text-amber-950 animate-coin" style="animation-delay: ${(i % 7) * 0.03}s">1</span>`;
+      }
+
+      centerPool.innerHTML = `
+        <div class="w-full h-full rounded-full border-4 border-amber-400/80 bg-gradient-to-b from-purple-950/90 via-slate-950 to-amber-950/40 shadow-inner flex flex-col items-center justify-between p-3 text-center">
+          <div class="space-y-0.5">
+            <div class="text-[10px] font-extrabold text-purple-300">가운데 코인 보관소</div>
+            <div class="text-lg sm:text-xl font-black text-amber-300">
+              🪙 ${state.centerCoins} <span class="text-xs text-amber-200/80">/ 56X</span>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-center gap-1 max-h-[115px] overflow-hidden px-1">
+            ${
+              state.centerCoins === 0
+                ? `<span class="text-[11px] font-bold text-slate-400">${state.phase === 'POUR' ? '코인을 부어주세요!' : '코인이 모두 소진됨!'}</span>`
+                : coinsHtml
+            }
+          </div>
+
+          <div class="text-[10px] font-bold text-amber-200/80">
+            ${state.phase === 'POUR' ? '⬆️ 시작 전 코인 붓기 필수!' : '괴물 칸 = 3개 반납!'}
+          </div>
+        </div>
+      `;
+
+      grid.appendChild(centerPool);
+    }
+
+    function renderUI() {
+      // Player count buttons
+      [4, 5, 6].forEach(n => {
+        const b = document.getElementById('pCntBtn' + n);
+        b.className = state.playerCount === n
+          ? 'px-2.5 py-1 rounded-lg bg-purple-400 text-slate-950 font-black transition'
+          : 'px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition';
+      });
+
+      // Lap buttons
+      [1, 2].forEach(n => {
+        const b = document.getElementById('lapBtn' + n);
+        b.className = state.targetLaps === n
+          ? 'px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-black transition'
+          : 'px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition';
+      });
+
+      // Step progress bar
+      const activeStep =
+        state.phase === 'POUR' ? 1 :
+        state.phase === 'DICE' ? 2 :
+        state.phase === 'MOVING' ? 3 : 4;
+
+      for (let i = 1; i <= 4; i++) {
+        const el = document.getElementById('stepIndicator' + i);
+        if (i === activeStep) {
+          el.className = 'p-2 rounded-xl border-2 border-purple-400 bg-purple-500/20 text-purple-200 scale-[1.02] transition-all';
+        } else {
+          el.className = 'p-2 rounded-xl border border-[var(--border)] opacity-60 transition-all';
+        }
+      }
+
+      document.getElementById('phasePour').classList.toggle('hidden', state.phase !== 'POUR');
+      document.getElementById('phaseDice').classList.toggle('hidden', !(state.phase === 'DICE' || state.phase === 'MOVING'));
+      document.getElementById('phaseGameOver').classList.toggle('hidden', state.phase !== 'GAMEOVER');
+
+      if (state.phase === 'DICE' || state.phase === 'MOVING') {
+        const p = state.players[state.activePlayerIdx];
+        const whoLabel = getPlayerLabel(state.activePlayerIdx);
+        const aiTurn = isAiPlayer(state.activePlayerIdx);
+
+        document.getElementById('turnBadgeText').textContent = `${state.activePlayerIdx + 1}P 차례`;
+        document.getElementById('turnLapInfo').textContent = `(현재 ${p.laps}/${state.targetLaps}바퀴 · 코인 ${p.coins}개)`;
+        document.getElementById('diceTurnTitle').textContent = `${whoLabel}가 주사위를 굴릴 차례예요!`;
+
+        const btnRoll = document.getElementById('btnRollDice');
+        btnRoll.disabled = aiTurn || state.phase === 'MOVING';
+        btnRoll.textContent = aiTurn ? `🤖 ${whoLabel}가 주사위를 굴리는 중...` : '🎲 주사위 굴리기!';
+      }
+
+      renderPlayersList();
+      renderHauntedBoard();
+    }
+
+    // STEP 2: Roll Dice & Move Forward
+    function rollDice() {
+      if (state.phase !== 'DICE') return;
+      state.phase = 'MOVING';
+      state.lastEventSpaceIdx = null;
+      playSound('dice');
+      renderUI();
+
+      const diceBox = document.getElementById('diceBox');
+      diceBox.classList.add('animate-dice');
+
+      setTimeout(() => {
+        diceBox.classList.remove('animate-dice');
+        const roll = Math.floor(Math.random() * 6) + 1;
+        diceBox.textContent = DICE_FACES[roll - 1];
+
+        const whoLabel = getPlayerLabel(state.activePlayerIdx);
+        updateStatus(
+          `🎲 ${whoLabel} 주사위 [${roll}]! 앞으로 ${roll}칸 이동합니다!`,
+          '설명서 2번: 주사위에 나온 수만큼 앞으로 가시오!'
+        );
+
+        movePlayerStepByStep(state.activePlayerIdx, roll);
+      }, 460);
+    }
+
+    function movePlayerStepByStep(playerIdx, remainingSteps) {
+      const p = state.players[playerIdx];
+
+      if (remainingSteps <= 0) {
+        onPlayerLanded(playerIdx);
+        return;
+      }
+
+      const nextPos = (p.pos + 1) % BOARD_SPACES.length;
+      if (nextPos === 0) {
+        p.laps += 1;
+        if (p.laps >= state.targetLaps) {
+          p.pos = 0;
+          p.finished = true;
+          playSound('step');
+          renderUI();
+          setTimeout(() => onPlayerLanded(playerIdx), 300);
+          return;
+        }
+      }
+
+      p.pos = nextPos;
+      playSound('step');
+      renderUI();
+
+      setTimeout(() => {
+        movePlayerStepByStep(playerIdx, remainingSteps - 1);
+      }, 250);
+    }
+
+    // STEP 3: Apply Space Effect (Coin Gain, Monster Return 3 Coins, GO BACK, or Finish Lap)
+    function onPlayerLanded(playerIdx) {
+      const p = state.players[playerIdx];
+      const sp = BOARD_SPACES[p.pos];
+      const whoLabel = getPlayerLabel(playerIdx);
+      state.lastEventSpaceIdx = sp.idx;
+
+      if (p.finished) {
+        playSound('coin');
+        updateStatus(
+          `🚪 ${whoLabel}가 START까지 ${state.targetLaps}바퀴 완주 성공! (현재 코인 ${p.coins}개)`,
+          '설명서 5번: 다시 시작까지 도착한다고 승리는 아닙니다! 모두 도착하면 코인 개수로 승부를 가립니다!'
+        );
+        renderUI();
+        setTimeout(() => advanceTurn(), 1100);
+        return;
+      }
+
+      if (sp.type === 'COIN') {
+        const take = Math.min(sp.coins, state.centerCoins);
+        p.coins += take;
+        state.centerCoins -= take;
+        playSound('coin');
+        updateStatus(
+          `🪙 ${whoLabel}가 [${sp.label}] 칸 도착! 가운데에서 코인 ${take}개를 가져갑니다!`,
+          `설명서 3번: 칸에 나온 숫자만큼 코인을 가져가세요! (${whoLabel} 보유 코인: ${p.coins}개)`
+        );
+        renderUI();
+
+        if (state.centerCoins <= 0) {
+          setTimeout(() => finishGame('가운데 동그라미의 코인 56개가 모두 바닥났어요!'), 1100);
+          return;
+        }
+        setTimeout(() => advanceTurn(), 1000);
+        return;
+      }
+
+      if (sp.type === 'MONSTER') {
+        // 설명서 4번: 칸에 괴물 그림이 있다면 코인을 3개씩 반납하세요.
+        const giveBack = Math.min(3, p.coins);
+        p.coins -= giveBack;
+        state.centerCoins += giveBack;
+        playSound('monster');
+        updateStatus(
+          `👻 으악! ${whoLabel}가 [${sp.label}] 칸에 걸려 코인 ${giveBack}개를 가운데에 반납했습니다!`,
+          `설명서 4번: 칸에 괴물 그림이 있다면 코인을 3개씩 반납하세요! (남은 코인: ${p.coins}개)`
+        );
+        renderUI();
+        setTimeout(() => advanceTurn(), 1100);
+        return;
+      }
+
+      if (sp.type === 'GOBACK') {
+        playSound('monster');
+        updateStatus(
+          `↩️ 앗! ${whoLabel}가 [GO BACK] 칸을 밟아 뒤로 2칸 밀려납니다!`,
+          '2칸 뒤로 이동한 칸의 효과가 발동합니다!'
+        );
+        renderUI();
+        setTimeout(() => {
+          p.pos = (p.pos - 2 + BOARD_SPACES.length) % BOARD_SPACES.length;
+          playSound('step');
+          renderUI();
+          setTimeout(() => onPlayerLanded(playerIdx), 550);
+        }, 850);
+        return;
+      }
+
+      // START space (mid-game)
+      renderUI();
+      setTimeout(() => advanceTurn(), 800);
+    }
+
+    function advanceTurn() {
+      // Check if all players finished their target laps
+      if (state.players.every(p => p.finished)) {
+        finishGame('모든 캐릭터가 다시 START까지 도착했습니다!');
+        return;
+      }
+
+      // Find next player who hasn't finished yet
+      let nextIdx = state.activePlayerIdx;
+      for (let step = 1; step <= state.playerCount; step++) {
+        const candidate = (state.activePlayerIdx + step) % state.playerCount;
+        if (!state.players[candidate].finished) {
+          nextIdx = candidate;
+          break;
+        }
+      }
+
+      state.activePlayerIdx = nextIdx;
+      state.phase = 'DICE';
+      renderUI();
+
+      if (isAiPlayer(state.activePlayerIdx)) {
+        setTimeout(() => {
+          rollDice();
+        }, 850);
+      }
+    }
+
+    // STEP 4: Winner Determination (설명서 5번: 코인을 제일 많이 모은 사람이 승!)
+    function finishGame(reasonText) {
+      state.phase = 'GAMEOVER';
+      playSound('win');
+
+      let maxCoins = -1;
+      state.players.forEach(p => {
+        if (p.coins > maxCoins) maxCoins = p.coins;
+      });
+
+      const winners = state.players
+        .filter(p => p.coins === maxCoins)
+        .map(p => getPlayerLabel(p.id));
+
+      const rankingText = [...state.players]
+        .sort((a, b) => b.coins - a.coins)
+        .map(p => `${CHARACTERS[p.id].emoji}${CHARACTERS[p.id].name}: ${p.coins}개`)
+        .join(' · ');
+
+      const winTitle = winners.length === 1
+        ? `🏆 ${winners[0]} 승리!! (코인 ${maxCoins}개 획득!)`
+        : `🏆 ${winners.join(' & ')} 공동 승리!! (코인 ${maxCoins}개씩 획득!)`;
+
+      document.getElementById('winnerTitle').textContent = winTitle;
+      document.getElementById('winnerSub').textContent =
+        `${reasonText} 최종 코인 순위 — ${rankingText}`;
+
+      updateStatus(
+        winTitle,
+        `설명서 5번: 코인을 제일 많이 모은 사람이 승! (${rankingText})`
+      );
+      renderUI();
+    }
+
+    // Initialize on load
+    initPlayers();
+    renderUI();
+  </script>
+</body>
+</html>
